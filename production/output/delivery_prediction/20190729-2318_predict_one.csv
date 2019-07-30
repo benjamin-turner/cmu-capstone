@@ -1,0 +1,6 @@
+,service,ship_cost,ground_cost,cost_saving,scheduled_window,pred_ground_window,pred_ground_cdf
+0,ups_next_day_air_early_am,98.59,10.89,87.7,1,6,3.218020917135961e-05
+1,ups_next_day_air,66.34,10.89,55.45,2,6,0.04022526146419952
+2,ups_next_day_air_saver,61.67,10.89,50.78,3,6,0.04085052292839903
+3,ups_second_day_air_am,24.41,10.89,13.52,5,6,0.1710748649580508
+4,ups_second_day_air,22.35,10.89,11.46,6,6,0.6194822051105238

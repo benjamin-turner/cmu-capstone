@@ -1,0 +1,5 @@
+,service,ship_cost,ground_cost,cost_saving,scheduled_window,pred_ground_window,pred_ground_cdf
+0,fedex_first_overnight,158.21,16.75,141.46,1,6,0.00041457407845581153
+1,fedex_priority_overnight,55.20,16.75,38.45,2,6,0.0040784891374259745
+2,fedex_2_day,58.92,16.75,42.17,6,6,0.5792017112160491
+3,fedex_express_saver,42.13,16.75,25.380000000000003,8,6,0.7876528270335501
