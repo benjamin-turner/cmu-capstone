@@ -16,6 +16,7 @@ data_delivery_prediction_features_dir = os.path.join(data_delivery_prediction_di
 data_delivery_prediction_external_dir = os.path.join(data_delivery_prediction_dir, 'external')
 data_delivery_prediction_data_dict_dir = os.path.join(data_delivery_prediction_dir, 'data_dict')
 data_delivery_prediction_input_dir = os.path.join(data_delivery_prediction_dir, 'input')
+data_delivery_prediction_windows_dir = os.path.join(data_delivery_prediction_dir, 'windows')
 data_benchmarking_preprocessed_dir = os.path.join(data_benchmarking_dir, 'benchmarking')
 data_benchmarking_input_dir = os.path.join(data_benchmarking_dir, 'input')
 
@@ -32,6 +33,7 @@ data_delivery_prediction_data_dict_dir_cmu = os.path.join(data_delivery_predicti
 
 model_cmu = os.path.join(model_dir, 'model_cmu.pkl.z')
 scaler_cmu = os.path.join(model_scaler_dir, 'scaler_cmu.pkl.z')
+windows_cmu = os.path.join(data_delivery_prediction_windows_dir, 'windows_cmu.pkl')
 
 # Unit test cases
 if __name__ == '__main__':

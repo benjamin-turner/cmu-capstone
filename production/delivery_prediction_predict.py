@@ -117,34 +117,33 @@ def get_shippo_details(shipper, weight, sender_zip, sender_state, recipient_zip,
         return None, None
     else:
         fedex_services_dict = {
-            'fedex_first_overnight': [1, '0D - 1D 8am'],
-            'fedex_priority_overnight': [2, '1D 8am - 1D 10.30am'],
-            'fedex_standard_overnight': [3, '1D 10.30am - 1D 3pm'],
-            'fedex_2_day_am': [5, '2D - 2D 10.30am'],
-            'fedex_2_day': [6, '2D 10.30am - 2D 4.30pm'],
-            'fedex_express_saver': [8, '3D - 3D 4.30pm']
+            'fedex_first_overnight': 1,
+            'fedex_priority_overnight': 2,
+            'fedex_standard_overnight': 3,
+            'fedex_2_day_am': 5,
+            'fedex_2_day': 6,
+            'fedex_express_saver': 8
         }
         ups_services_dict = {
-            'ups_next_day_air_early_am': [1, '0D - 1D 8am'],
-            'ups_next_day_air': [2, '1D 8am - 1D 10.30am'],
-            'ups_next_day_air_saver': [3, '1D 10.30am - 1D 3pm'],
-            'ups_second_day_air_am': [5, '2D - 2D 10.30am'],
-            'ups_second_day_air': [6, '2D 10.30am - 2D 4.30pm'],
-            'ups_3_day_select': [8, '3D - 3D 4.30pm']
+            'ups_next_day_air_early_am': 1,
+            'ups_next_day_air': 2,
+            'ups_next_day_air_saver': 3,
+            'ups_second_day_air_am': 5,
+            'ups_second_day_air': 6,
+            'ups_3_day_select': 8
         }
-
-        headers = ['service', 'scheduled_window_time', 'ship_cost', 'ground_cost', 'cost_saving', 'scheduled_window']
+        headers = ['service','ship_cost', 'ground_cost', 'cost_saving', 'scheduled_window_no', 'scheduled_window']
         if shipper == 'ups':
             chosen_dict = ups_services_dict
         elif shipper == 'fedex':
             chosen_dict = fedex_services_dict
         # Create lists
-        service = []
-        ship_cost = []
-        ground_cost = []
-        cost_saving = []
-        scheduled_window_time = []
-        scheduled_window = []
+        services = []
+        ship_costs = []
+        ground_costs = []
+        cost_savings = []
+        scheduled_windows = []
+        scheduled_window_nos = []
         try:
             if shipper == 'ups':
                 ground_cost_ = float(results['ups_ground'])
@@ -152,17 +151,21 @@ def get_shippo_details(shipper, weight, sender_zip, sender_state, recipient_zip,
                 ground_cost_ = float(results['fedex_ground'])
         except KeyError:
             print(shipper, "does not send to the zipcode provided. Please try again.")
+        # Load window to window time dict
+        windows_cmu = joblib.load(paths.windows_cmu)
         # Append values to list
         for i in chosen_dict.keys():
             if i in results.keys():
-                service.append(i)
-                ship_cost.append(results[i])
-                ground_cost.append(ground_cost_)
-                cost_saving.append(float(results[i]) - ground_cost_)
-                scheduled_window.append(chosen_dict[i][0])
-                scheduled_window_time.append(chosen_dict[i][1])
+                services.append(i)
+                ship_costs.append(results[i])
+                ground_costs.append(ground_cost_)
+                cost_savings.append(float(results[i]) - ground_cost_)
+                scheduled_window_no = chosen_dict[i]
+                scheduled_window_nos.append(scheduled_window_no)
+                scheduled_windows.append(windows_cmu[scheduled_window_no])
         # Create list of tuples for dataframe
-        df = pd.DataFrame(list(zip(service, scheduled_window_time, ship_cost, ground_cost, cost_saving, scheduled_window)), columns=headers)
+        df = pd.DataFrame(list(zip(services, ship_costs, ground_costs, cost_savings, scheduled_window_nos, scheduled_windows)), columns=headers)
+        print(df)
         return df, zone
 
 
@@ -174,7 +177,7 @@ def preprocess_one(shipment_date, shipper, std_weight, sender_zip, recipient_zip
     # Get sender_in_msa and recipient_in_MSA and same_msa booleans
     sender_in_msa, rec_in_msa, same_msa = get_msa_details(sender_zip, recipient_zip)
     # Get distance
-    distance = get_distance(sender_zip, recipient_zip)
+    distance = round(get_distance(sender_zip, recipient_zip), 5)
     # Get population, density, no. houses, state code for recipient and sender
     search = SearchEngine()
     recipient_pop, recipient_pop_density, recipient_houses, recipient_state = get_zip_details(recipient_zip, search)
@@ -191,9 +194,11 @@ def preprocess_one(shipment_date, shipper, std_weight, sender_zip, recipient_zip
                  sender_houses, recipient_pop, recipient_pop_density, recipient_houses, same_msa,
                  sender_in_msa, rec_in_msa, week_number, day_of_week, month]
     # print(df.loc[0])
-    # For display purposes
+    #############################################
+    #     # For MINMAX SCALED DISPLAY ONLY, to remove in production
     display_df = df.copy(deep=False)
     display_df = pd.concat([display_df] * 2, ignore_index=True)
+    #############################################
     # Define categorical and float columns
     cat_cols = ['shipper', 'zone', 'week_number', 'day_of_week',
                 'sender_state', 'recipient_state', 'month']
@@ -213,10 +218,11 @@ def preprocess_one(shipment_date, shipper, std_weight, sender_zip, recipient_zip
     test = test.reshape(1, -1)
     scaler = joblib.load(scaler)
     test = scaler.transform(test)
-    # For MINMAX SCALED DISPLAY ONLY
+    #############################################
+    # For MINMAX SCALED DISPLAY ONLY, to remove in production
     np.set_printoptions(precision=5, suppress=True)
     test_display = np.array(test[0], copy=True)
-    np.around(test_display, 5)
+    test_display = np.around(test_display, 5)
     display_df.at[1, 'std_weight'] = test_display[0]
     display_df.at[1, 'distance'] = test_display[1]
     display_df.at[1, 'sender_pop'] = test_display[2]
@@ -230,6 +236,7 @@ def preprocess_one(shipment_date, shipper, std_weight, sender_zip, recipient_zip
     # Reverse order of columns
     display_df_T = display_df_T[['features', 0, 1]]
     print(tabulate(display_df_T, headers=['features','raw','scaled'], showindex=False, floatfmt=".5f", tablefmt='psql'))
+    ##############################################
     print_elapsed_time(start_time)
     print(" ")
     return test, rates_df
@@ -250,18 +257,19 @@ def predict_time_windows(test, model):
 def predict_cost_savings(pred, pred_proba, rates_df):
     start_time = time.time()
     print("Calculating cost savings and probabilities...")
-    # put predictions into df
-    rates_df['pred_ground_window'] = pred
-    # put predicted array into df
+    # Load window to window time dict
+    windows_cmu = joblib.load(paths.windows_cmu)
+    # Insert predicted time window into df
+    rates_df['pred_ground_window'] = windows_cmu[pred]
+    # Insert predicted array into df
     rates_df['pred_ground_window_pdf'] = 0
     rates_df['pred_ground_window_pdf'] = rates_df['pred_ground_window_pdf'].astype(object)
     for i in range(len(rates_df)):
         rates_df.at[i, 'pred_ground_window_pdf'] = pred_proba
-    # ground cdf up till scheduled window
-    rates_df['pred_probability'] = rates_df.apply(lambda x: np.sum(x['pred_ground_window_pdf'][:x['scheduled_window'] + 1]),
-                                              axis=1)
+    # For each row, calculate ground CDF up till scheduled window
+    rates_df['pred_probability'] = rates_df.apply(lambda x: np.sum(x['pred_ground_window_pdf'][:x['scheduled_window_no'] + 1]), axis=1)
     rates_df['pred_probability'] = pd.Series(["{0:.2f}%".format(val * 100) for val in rates_df['pred_probability']], index=rates_df.index)
-    rates_df = rates_df.drop(columns=['pred_ground_window_pdf'])
+    rates_df = rates_df.drop(columns=['pred_ground_window_pdf', 'scheduled_window_no'])
     print_elapsed_time(start_time)
     print(" ")
     return rates_df
@@ -278,7 +286,7 @@ def predict_one_cost_savings(shipment_date, shipper, weight, sender_zip, recipie
     cost_savings_df.to_csv(output_path+"_predict_one.csv")
     # Print output
     print(tabulate(cost_savings_df, headers='keys', showindex=False, floatfmt=".2f", tablefmt='psql',
-                   colalign=['left', 'left', 'center', 'center', 'center', 'center', 'center', 'center']))
+                   colalign=['left', 'center', 'center', 'center', 'center', 'center', 'center']))
     print("Results saved to " + output_path + "_predict_one.csv")
     return cost_savings_df
 
