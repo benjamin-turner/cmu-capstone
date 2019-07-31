@@ -1,3 +1,10 @@
+"""
+Predict code
+"""
+
+import credentials
+import paths
+
 import os
 import time
 from datetime import datetime
@@ -9,38 +16,87 @@ import pgeocode
 import shippo
 from tabulate import tabulate
 from uszipcode import SearchEngine
-import credentials
-import paths
+
 
 
 def create_id():
+    """
+    Create a id using the current timestamp
+
+    Returns:
+            str: Current timestamp in YYMMDD-HHMM format
+    """
     now = datetime.now()
     model_id = now.strftime("%Y%m%d-%H%M")
     return model_id
 
 
 def print_elapsed_time(start_time):
+    """
+    Prints amount of time elapsed since start time
+
+    Args:
+            start_time (datetime): timestamp
+    """
     elapsed_time_secs = time.time() - start_time
     msg = "Execution took: %s secs (Wall clock time)" % timedelta(seconds=round(elapsed_time_secs))
     print(msg)
 
 
 def get_distance(zipcode1, zipcode2):
+    """
+    Gets geodesic distance between 2 given zipcodes
+    https://pgeocode.readthedocs.io/en/latest/overview.html
+
+    Args:
+            zipcode1: sender 5-digit zipcode
+            zipcode2: recipient 5-digit zipcode
+
+    Returns:
+            float: distance between zipcodes in miles
+    """
     dist = pgeocode.GeoDistance('us')
     return dist.query_postal_code(zipcode1, zipcode2)
 
 
 def get_zip_details(zipcode1, search):
+    """
+    Get population, population density, no. housing units
+    and state for given zipcode
+    https://pgeocode.readthedocs.io/en/latest/overview.html
+
+    Args:
+            zipcode1 (str): target 5-digit zipcode
+            search (obj): uszipcode search object
+
+    Returns:
+            pop (int): population
+            pop_density (int): population density
+            housing_units (int): number of housing units
+            state (str): 2-letter US state code
+    """
     zipcode = search.by_zipcode(zipcode1)
     pop = zipcode.population
     pop_density = zipcode.population_density
     housing_units = zipcode.housing_units
     state = zipcode.state
-    # Return 0 if not found. nans will encounter error later.
+    # Returns 0 if not found. If NaN, program will encounter error
+    # during transformation.
     return pop or 0, pop_density or 0, housing_units or 0, state or 0
 
 
 def get_date_details(shipment_date):
+    """
+    Gets month, week of year, and day of week from date
+
+    Args:
+           shipment_date (str): date in YYYY-MM-DD format
+
+    Returns:
+            week_number (int): week of year
+            day_of_week (int): day of week
+            month (int): month of year
+    """
     shipment_date_parsed = pd.Series(datetime.strptime(shipment_date, '%Y-%m-%d'))
     week_number = shipment_date_parsed.dt.week.values[0]
     day_of_week = shipment_date_parsed.dt.dayofweek.values[0]
@@ -165,7 +221,6 @@ def get_shippo_details(shipper, weight, sender_zip, sender_state, recipient_zip,
                 scheduled_windows.append(windows_cmu[scheduled_window_no])
         # Create list of tuples for dataframe
         df = pd.DataFrame(list(zip(services, ship_costs, ground_costs, cost_savings, scheduled_window_nos, scheduled_windows)), columns=headers)
-        print(df)
         return df, zone
 
 
