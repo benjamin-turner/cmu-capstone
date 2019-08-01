@@ -13,14 +13,15 @@ import delivery_prediction_predict
 import menu_options
 import paths
 import extract
+import numpy as np
+import benchmarking
 
 
 def load_main_menu():
     main_menu_choice = prompt(menu_options.main_menu, style=custom_style_3)
     user_choice = menu_options.main_menu_options.index(main_menu_choice['main_menu']) + 1
     if user_choice == 1:
-        # TODO: Shiv code for benchmarking
-        sys.exit()
+        load_benchmarking_menu()
     if user_choice == 2:
         load_delivery_prediction_menu()
     if user_choice == 3:
@@ -31,6 +32,28 @@ def load_main_menu():
     if user_choice == 5:
         # TODO: Royce code for preprocessing and training
         sys.exit()
+    else:
+        sys.exit()
+
+
+def load_benchmarking_menu():
+    benchmarking_initial_answers = prompt(menu_options.benchmarking_initial_questions, style=custom_style_3)
+    # Get user input for SID and pecentile
+    sid = benchmarking_initial_answers['sid']
+    percentile = benchmarking_initial_answers['percentile']
+    benchmarking_metric_selection_answers = prompt(menu_options.benchmarking_metrics_selection_questions, style=custom_style_3)
+    metrics_selected = benchmarking_metric_selection_answers['benchmarking_metrics_selection']
+    print(metrics_selected)
+    if "Number of peers" in metrics_selected:
+        print("Number of peers is selected")
+    benchmarking.get_selected_metrics(metrics_selected, sid, percentile, preloaded_matrix, preloaded_KPIs)
+    # Run file
+    benchmarking_menu_choice = prompt(menu_options.benchmarking_menu, style=custom_style_3)
+    user_choice = menu_options.benchmarking_menu_options.index(benchmarking_menu_choice['benchmarking_menu']) + 1
+    if user_choice == 1:
+        load_benchmarking_menu()
+    elif user_choice == 2:
+        load_main_menu()
     else:
         sys.exit()
 
@@ -105,13 +128,28 @@ def load_extract_questions():
 
 print("Welcome to the 71bs dashboard")
 # For demo purposes, we preload the models
-# print("Preloading model...")
+print("Preloading delivery prediction model...")
 # preloaded_model = joblib.load(paths.model_cmu)
 preloaded_model = "FILLER"
-# print("Model preloaded.")
+print("Model preloaded.")
+
+print("Preloading benchmarking data...")
+# Preload the similarity score matrix
+preloaded_matrix = joblib.load(paths.benchmarking_ss_matrix_cmu)
+# Convert SS matrix to np array for performance
+full_ss_matrix_optimized = np.array(preloaded_matrix)
+# Collect all sid values from SS matrix
+full_matrix_indices = np.array(preloaded_matrix.index.values)
+
+# Prelaod the KPI database
+preloaded_KPIs = joblib.load(paths.benchmarking_kpi_cmu)
+# Convert KPI database to np array for performance
+full_kpi_optimized = np.array(preloaded_KPIs)
+# Collect all sid values from KPI database
+full_kpi_indices = np.array(preloaded_KPIs.index.values)
+print("Benchmarking data preloaded.")
 
 load_main_menu()
-
 
 
 

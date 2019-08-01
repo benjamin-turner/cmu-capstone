@@ -35,6 +35,9 @@ model_cmu = os.path.join(model_dir, 'model_cmu.pkl.z')
 scaler_cmu = os.path.join(model_scaler_dir, 'scaler_cmu.pkl.z')
 windows_cmu = os.path.join(data_delivery_prediction_windows_dir, 'windows_cmu.pkl')
 
+benchmarking_ss_matrix_cmu = os.path.join(data_benchmarking_dir, 'full_similarity_score_table.pickle')
+benchmarking_kpi_cmu = os.path.join(data_benchmarking_dir, 'full_KPI_database_v2.pickle')
+
 # Unit test cases
 if __name__ == '__main__':
     print("data_delivery_prediction_data_dict_dir: ", data_delivery_prediction_data_dict_dir)
