@@ -1,13 +1,7 @@
-import datetime
-import glob
-import sys
-import joblib
-import zipcodes
 import numpy as np
 import pandas as pd
 import time
 from prettytable import PrettyTable
-import delivery_prediction_predict
 import paths
 import menu_options
 
@@ -15,7 +9,6 @@ import menu_options
 def get_raw_scores(sid, preloaded_matrix, preloaded_KPIs):
     full_ss_matrix_optimized = np.array(preloaded_matrix)
     full_matrix_indices = np.array(preloaded_matrix.index.values)
-    full_KPI_indices = np.array(preloaded_KPIs.index.values)
     # Retrieve the index at which the requested sid is present in the SS matrix
     test_sid_idx = np.where(full_matrix_indices == sid)[0][0]
     # Return the SS array
@@ -35,13 +28,9 @@ def get_raw_scores(sid, preloaded_matrix, preloaded_KPIs):
 
 # For a given sid and percentile, this function returns the threshold similarity score value.
 # All sids with a similarity score higher than the threshold value will be deemed 'similar customers'
-# at the given percentile(default 90th %ile) level
+# at the given percentile level
 def ss_threshold(sid, percentile, preloaded_matrix, preloaded_KPIs):
-    full_ss_matrix_optimized = np.array(preloaded_matrix)
-    full_matrix_indices = np.array(preloaded_matrix.index.values)
-    full_KPI_indices = np.array(preloaded_KPIs.index.values)
     normalized_threshold_score = (np.percentile(get_raw_scores(sid, preloaded_matrix, preloaded_KPIs), percentile))
-    # print(normalized_threshold_score)
     return np.round(normalized_threshold_score, 3)
 
 # This directly returns a list of ALL similar customers that are above a certain percentile threshold(default 90th %ile)
@@ -49,7 +38,6 @@ def ss_threshold(sid, percentile, preloaded_matrix, preloaded_KPIs):
 def get_similar_customers(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
     full_ss_matrix_optimized = np.array(preloaded_matrix)
     full_matrix_indices = np.array(preloaded_matrix.index.values)
-    full_KPI_indices = np.array(preloaded_KPIs.index.values)
     inp_sid = input_sid
     # Get threshold score for requested sid
     threshold_score = ss_threshold(inp_sid, percentile, preloaded_matrix, preloaded_KPIs)
@@ -79,8 +67,6 @@ def get_similar_customers(input_sid, percentile, user, preloaded_matrix, preload
 
 # Average Spend KPI (Option 2)
 def KPI_avg_spend(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
-    full_ss_matrix_optimized = np.array(preloaded_matrix)
-    full_matrix_indices = np.array(preloaded_matrix.index.values)
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
     avg_spend_KPI_list = np.array(np.round(preloaded_KPIs['avg_tot_spend'], 2))
 
@@ -103,8 +89,6 @@ def KPI_avg_spend(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs)
 
 # Average Discount KPI (Option 3)
 def KPI_avg_discount(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
-    full_ss_matrix_optimized = np.array(preloaded_matrix)
-    full_matrix_indices = np.array(preloaded_matrix.index.values)
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
     avg_discount_KPI_list = np.array(np.round(preloaded_KPIs['avg_tot_discounts'], 2))
 
@@ -129,8 +113,6 @@ def KPI_avg_discount(input_sid, percentile, user, preloaded_matrix, preloaded_KP
 
 # Average Spend per Shipping Method KPI (Option 4)
 def KPI_avg_spend_per_method(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
-    full_ss_matrix_optimized = np.array(preloaded_matrix)
-    full_matrix_indices = np.array(preloaded_matrix.index.values)
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
     spend_per_method_df = np.round(preloaded_KPIs.iloc[:, 2:9], 2)
 
@@ -165,8 +147,6 @@ def KPI_avg_spend_per_method(input_sid, percentile, user, preloaded_matrix, prel
 
 # Average Discount per Shipping Method KPI (Option 5)
 def KPI_avg_discount_per_method(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
-    full_ss_matrix_optimized = np.array(preloaded_matrix)
-    full_matrix_indices = np.array(preloaded_matrix.index.values)
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
     discount_per_method_df = np.round(preloaded_KPIs.iloc[:, 21:28], 2)
 
@@ -234,8 +214,6 @@ def KPI_spend_per_month(input_sid, percentile, user, preloaded_matrix, preloaded
 
 # Discounts per Zone KPI (Option 7)
 def KPI_discount_per_zone(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
-    full_ss_matrix_optimized = np.array(preloaded_matrix)
-    full_matrix_indices = np.array(preloaded_matrix.index.values)
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
     discount_per_zone_df = np.round(preloaded_KPIs.iloc[:, 28:38], 2)
 
@@ -271,8 +249,6 @@ def KPI_discount_per_zone(input_sid, percentile, user, preloaded_matrix, preload
 
 # Shipping Method Proportion KPI (Option 8)
 def KPI_methodwise_proportion(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
-    full_ss_matrix_optimized = np.array(preloaded_matrix)
-    full_matrix_indices = np.array(preloaded_matrix.index.values)
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
     methodwise_proportion_df = np.round(preloaded_KPIs.iloc[:, 38:45], 2)
 
@@ -309,8 +285,6 @@ def KPI_methodwise_proportion(input_sid, percentile, user, preloaded_matrix, pre
 
 # Volume per method KPI (Option 9)
 def KPI_volume_per_method(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
-    full_ss_matrix_optimized = np.array(preloaded_matrix)
-    full_matrix_indices = np.array(preloaded_matrix.index.values)
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
     volume_per_method_df = np.round(preloaded_KPIs.iloc[:, 45:-2], 2)
 
@@ -347,8 +321,6 @@ def KPI_volume_per_method(input_sid, percentile, user, preloaded_matrix, preload
 
 # Shipper Proportion KPI (Option 10)
 def KPI_shipper_proportion(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
-    full_ss_matrix_optimized = np.array(preloaded_matrix)
-    full_matrix_indices = np.array(preloaded_matrix.index.values)
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
     fedex_prop_list = np.array(np.round(preloaded_KPIs['prop_fedex'], 2))
     ups_prop_list = np.array(np.round(preloaded_KPIs['prop_ups'], 2))
