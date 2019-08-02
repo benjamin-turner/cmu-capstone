@@ -1,15 +1,10 @@
-import datetime
-import glob
-import sys
-import joblib
-import zipcodes
+import time
 import numpy as np
 import pandas as pd
-import time
 from prettytable import PrettyTable
-import delivery_prediction_predict
-import paths
 import menu_options
+import paths
+
 
 # Retrieve raw scores from the full SS matrix
 def get_raw_scores(sid, preloaded_matrix, preloaded_KPIs):
@@ -70,7 +65,7 @@ def get_similar_customers(input_sid, percentile, user, preloaded_matrix, preload
     if (user == 1):
         print('The top 10 similar SIDs are:')
         print(sorted_sids[0:10], '\n')
-        print(inp_sid, 'has', len(sorted_sids), f'similar customers in the top {100 - percentile} percentile.\n')
+        print(inp_sid, 'has', len(sorted_sids), f'similar customers in the top {100 - percentile}%\n')
     cols = ["Similar_SIDs", "Similarity_Score"]
     KPIdata = np.column_stack((sorted_sids, sorted_scores))
     df = pd.DataFrame(data=KPIdata, columns=cols)

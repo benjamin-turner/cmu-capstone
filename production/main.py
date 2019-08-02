@@ -1,20 +1,17 @@
 # coding: utf8
 
 from __future__ import print_function, unicode_literals
-import datetime
-import joblib
 import os
 import sys
-from pprint import pprint
+import joblib
+import numpy as np
 from PyInquirer import prompt
 from examples import custom_style_3
-# Import internal modules
+import benchmarking
 import delivery_prediction_predict
+import extract
 import menu_options
 import paths
-import extract
-import numpy as np
-import benchmarking
 
 
 def load_main_menu():
@@ -27,8 +24,7 @@ def load_main_menu():
     if user_choice == 3:
         load_extract_menu()
     if user_choice == 4:
-        # TODO: Shiv code for preprocessing and calculation matrix
-        sys.exit()
+        load_benchmarking_preprocess_menu()
     if user_choice == 5:
         # TODO: Royce code for preprocessing and training
         sys.exit()
@@ -37,17 +33,15 @@ def load_main_menu():
 
 
 def load_benchmarking_menu():
-    benchmarking_initial_answers = prompt(menu_options.benchmarking_initial_questions, style=custom_style_3)
     # Get user input for SID and pecentile
+    benchmarking_initial_answers = prompt(menu_options.benchmarking_initial_questions, style=custom_style_3)
     sid = benchmarking_initial_answers['sid']
     percentile = benchmarking_initial_answers['percentile']
     benchmarking_metric_selection_answers = prompt(menu_options.benchmarking_metrics_selection_questions, style=custom_style_3)
     metrics_selected = benchmarking_metric_selection_answers['benchmarking_metrics_selection']
-    print(metrics_selected)
-    if "Number of peers" in metrics_selected:
-        print("Number of peers is selected")
+    # Display metrics for user selection
     benchmarking.get_selected_metrics(metrics_selected, sid, percentile, preloaded_matrix, preloaded_KPIs)
-    # Run file
+    # Display menu
     benchmarking_menu_choice = prompt(menu_options.benchmarking_menu, style=custom_style_3)
     user_choice = menu_options.benchmarking_menu_options.index(benchmarking_menu_choice['benchmarking_menu']) + 1
     if user_choice == 1:
@@ -107,26 +101,38 @@ def load_predict_one_questions(scaler_path, model_path):
 
 
 def load_extract_menu():
-    load_extract_questions()
-    while True:
-        extract_menu_choice = prompt(menu_options.extract_menu, style=custom_style_3)
-        extract_menu_choice_no = menu_options.extract_menu_options.index(
-            extract_menu_choice['extract_menu']) + 1
-        if extract_menu_choice_no == 1:
-            load_extract_questions()
-        elif extract_menu_choice_no == 2:
-            load_main_menu()
-        else:
-            sys.exit()
-
-
-def load_extract_questions():
     extract_data_answers = prompt(menu_options.extract_data_questions, style=custom_style_3)
-    extract.extract_data(extract_data_answers['start_date'],
-                         extract_data_answers['end_date'],
-                         extract_data_answers['sample_size'])
+    records = extract.batch_query(extract_data_answers['start_date'],
+                                  extract_data_answers['end_date'],
+                                  extract_data_answers['sample_size'])
+    output_path = extract.store(records, extract_data_answers['sample_size'])
+    print(f"Data extracted and stored in {output_path}")
+    extract_menu_choice = prompt(menu_options.extract_menu, style=custom_style_3)
+    extract_menu_choice_no = menu_options.extract_menu_options.index(
+        extract_menu_choice['extract_menu']) + 1
+    if extract_menu_choice_no == 1:
+        load_extract_menu()
+    elif extract_menu_choice_no == 2:
+        load_main_menu()
+    else:
+        sys.exit()
 
-print("Welcome to the 71bs dashboard")
+
+def load_benchmarking_preprocess_menu():
+    # Get user input for SID and pecentile
+    benchmarking_preprocess_answers = prompt(menu_options.benchmarking_preprocess_questions, style=custom_style_3)
+    similarity_matrix_choice = benchmarking_preprocess_answers['benchmarking_preprocess_answer']
+    print(f"You have chosen to use the {similarity_matrix_choice} to generate the new similarity matrix")
+    # Display menu
+    benchmarking_preprocess_menu_choice = prompt(menu_options.benchmarking_preprocess_menu, style=custom_style_3)
+    user_choice = menu_options.benchmarking_preprocess_menu_options.index(benchmarking_preprocess_menu_choice['benchmarking_preprocess_menu']) + 1
+    if user_choice == 1:
+        load_benchmarking_preprocess_menu()
+    elif user_choice == 2:
+        load_main_menu()
+    else:
+        sys.exit()
+
 # For demo purposes, we preload the models
 print("Preloading delivery prediction model...")
 # preloaded_model = joblib.load(paths.model_cmu)
@@ -140,7 +146,8 @@ preloaded_matrix = joblib.load(paths.benchmarking_ss_matrix_cmu)
 full_ss_matrix_optimized = np.array(preloaded_matrix)
 # Collect all sid values from SS matrix
 full_matrix_indices = np.array(preloaded_matrix.index.values)
-
+import builtins
+builtins.sid_list = preloaded_matrix.columns.values
 # Prelaod the KPI database
 preloaded_KPIs = joblib.load(paths.benchmarking_kpi_cmu)
 # Convert KPI database to np array for performance
@@ -149,6 +156,7 @@ full_kpi_optimized = np.array(preloaded_KPIs)
 full_kpi_indices = np.array(preloaded_KPIs.index.values)
 print("Benchmarking data preloaded.")
 
+print("Welcome to the 71bs dashboard")
 load_main_menu()
 
 

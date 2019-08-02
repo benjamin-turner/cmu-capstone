@@ -22,31 +22,7 @@ import pgeocode
 import shippo
 from tabulate import tabulate
 from uszipcode import SearchEngine
-import credentials
-import paths
-
-def create_id():
-    """
-    Create a id using the current timestamp
-
-    Returns:
-            str: Current timestamp in YYMMDD-HHMM format
-    """
-    now = datetime.now()
-    model_id = now.strftime("%Y%m%d-%H%M")
-    return model_id
-
-
-def print_elapsed_time(start_time):
-    """
-    Prints amount of time elapsed since start time
-
-    Args:
-            start_time (datetime): timestamp
-    """
-    elapsed_time_secs = time.time() - start_time
-    msg = "Execution took: %s secs (Wall clock time)" % timedelta(seconds=round(elapsed_time_secs))
-    print(msg)
+import credentials, utilities, paths
 
 
 def get_distance(zipcode1, zipcode2):
@@ -347,11 +323,6 @@ def preprocess_one(shipment_date, shipper, std_weight, sender_zip, recipient_zip
                  sender_state, recipient_state, distance, sender_pop, sender_pop_density,
                  sender_houses, recipient_pop, recipient_pop_density, recipient_houses, same_msa,
                  sender_in_msa, rec_in_msa, week_number, day_of_week, month]
-    #############################################
-    # For MINMAX SCALED DISPLAY ONLY, to remove in production
-    display_df = df.copy(deep=False)
-    display_df = pd.concat([display_df] * 2, ignore_index=True)
-    #############################################
     # Define categorical and float columns for one-hot-encoding purposes
     cat_cols = ['shipper', 'zone', 'week_number', 'day_of_week',
                 'sender_state', 'recipient_state', 'month']
@@ -371,26 +342,10 @@ def preprocess_one(shipment_date, shipper, std_weight, sender_zip, recipient_zip
     test = test.reshape(1, -1)
     scaler = joblib.load(scaler)
     test = scaler.transform(test)
-    #############################################
-    # For MINMAX SCALED DISPLAY ONLY, to remove in production
-    np.set_printoptions(precision=5, suppress=True)
-    test_display = np.array(test[0], copy=True)
-    test_display = np.around(test_display, 5)
-    display_df.at[1, 'std_weight'] = test_display[0]
-    display_df.at[1, 'distance'] = test_display[1]
-    display_df.at[1, 'sender_pop'] = test_display[2]
-    display_df.at[1, 'sender_pop_density'] = test_display[3]
-    display_df.at[1, 'sender_houses'] = test_display[4]
-    display_df.at[1, 'recipient_pop'] = test_display[5]
-    display_df.at[1, 'recipient_pop_density'] = test_display[6]
-    display_df.at[1, 'recipient_houses'] = test_display[7]
-    display_df_T = display_df.T
-    display_df_T['features'] = display_df.columns.values
-    display_df_T = display_df_T[['features', 0, 1]]
-    print(tabulate(display_df_T, headers=['features','raw','scaled'], showindex=False, floatfmt=".5f", tablefmt='psql'))
-    ##############################################
-    print_elapsed_time(start_time)
+    utilities.print_elapsed_time(start_time)
     print(" ")
+    print("preprocess")
+    print(test, rates_df)
     return test, rates_df
 
 
@@ -419,8 +374,10 @@ def predict_time_windows(test, model):
     # model = joblib.load(model)
     pred = model.predict(test)
     pred_proba = model.predict_proba(test)
-    print_elapsed_time(start_time)
+    utilities.print_elapsed_time(start_time)
     print(" ")
+    print("predict")
+    print(pred, pred_proba)
     return pred, pred_proba
 
 
@@ -447,15 +404,17 @@ def format_cost_savings(pred, pred_proba, rates_df):
             windows, predicted time windows, cumulative
             probability as columns
     """
-    if pred is None:
-        return None
     start_time = time.time()
     print("Calculating cost savings and probabilities...")
     # Load dict that maps time window numbers to time windows
     windows_cmu = joblib.load(paths.windows_cmu)
     # Insert predicted time window into dataframe
     # windows_cmu maps time window number to corresponding time window
-    rates_df['pred_ground_window'] = windows_cmu[pred]
+    try:
+        rates_df['pred_ground_window'] = windows_cmu[pred]
+    except TypeError:
+        print("Shipper did not return any results")
+        pass
     # Insert predicted probability distribution array object into each cell in column
     rates_df['pred_ground_window_pdf'] = 0
     rates_df['pred_ground_window_pdf'] = rates_df['pred_ground_window_pdf'].astype(object)
@@ -468,7 +427,7 @@ def format_cost_savings(pred, pred_proba, rates_df):
     rates_df['pred_probability'] = pd.Series(["{0:.2f}%".format(val * 100) for val in rates_df['pred_probability']], index=rates_df.index)
     # Drop columns that are not needed for display
     rates_df = rates_df.drop(columns=['pred_ground_window_pdf', 'scheduled_window_no'])
-    print_elapsed_time(start_time)
+    utilities.print_elapsed_time(start_time)
     print(" ")
     return rates_df
 
@@ -498,7 +457,7 @@ def predict_one_cost_savings(shipment_date, shipper, weight, sender_zip, recipie
             as columns
     """
     # Create model_id using current timestamp
-    model_id = create_id()
+    model_id = utilities.create_id()
     # Preprocess user input
     preprocessed_input, rates_df = preprocess_one(shipment_date, shipper, weight, sender_zip, recipient_zip, scaler)
     # Predict based on preprocessed input
