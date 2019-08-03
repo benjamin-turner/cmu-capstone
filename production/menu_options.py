@@ -63,6 +63,20 @@ class DateValidator(Validator):
                 message='Please enter a valid date in YYYY-MM-DD format',
                 cursor_position=len(document.text))  # Move cursor to end
 
+
+class YearMonthValidator(Validator):
+    '''
+    abc
+    '''
+    def validate(self, document):
+        try:
+            datetime.datetime.strptime(document.text, '%Y-%m')
+        except ValueError:
+            raise ValidationError(
+                message='Please enter a valid date in YYYY-MM-DD format',
+                cursor_position=len(document.text))  # Move cursor to end
+
+
 class ZipcodeValidator(Validator):
     def validate(self, document):
         ok = False
@@ -281,16 +295,16 @@ extract_data_questions = [
     {
         'type': 'input',
         'name': 'start_date',
-        'message': 'What is the start date for data extraction? (Please enter in YYYY-MM-DD format)',
-        'validate': DateValidator,
-        'default': '2018-06-01'
+        'message': 'What is the start year/month for data extraction? (Please enter in YYYY-MM format)',
+        'validate': YearMonthValidator,
+        'default': '2018-06'
     },
     {
         'type': 'input',
         'name': 'end_date',
-        'message': 'What is the cut-off date for data extraction? (Please enter in YYYY-MM-DD format)',
-        'validate': DateValidator,
-        'default': '2019-05-31'
+        'message': 'What is the cut-off year/month for data extraction? (Please enter in YYYY-MM format)',
+        'validate': YearMonthValidator,
+        'default': '2019-05'
     },
     {
         'type': 'input',

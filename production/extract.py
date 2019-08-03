@@ -1,46 +1,44 @@
+import calendar
 import os
-import math
-
 import time
 from datetime import datetime
-from datetime import timedelta
-from datetime import date
-
-import pandas as pd
 import MySQLdb
-from fuzzywuzzy import fuzz
-from fuzzywuzzy import process
+import pandas as pd
+from dateutil import relativedelta
+from fuzzywuzzy import fuzz, process
+import joblib
+from tqdm import tqdm, trange
 
-import paths, utilities, credentials
+import credentials
+import paths
+import utilities
 
 
-def query(db, start_year_week, end_year_week, frac=1):
+def query(db, start_date, end_date, frac):
     """
     Queries for and returns a sample of records that meet where clause criteria
     """
-    # initializes query based upon start and end dates of shipment_date
-
+    # initializes query based upon start and end year months of shipment_date
     fraction = utilities.string_to_decimal(frac)
-
     sql_query = """
-    select * from 
-    (select * from 
-    (select * from 
-    (select year_week, business_sid, upper(trim(industry)) as industry, upper(trim(sub_industry)) as sub_industry,shipper,
-    trim(service_type_description) as service_type,package_count, weight,shipment_date,delivery_date, delivery_time, 
+    SELECT year_week, business_sid, UPPER(TRIM(industry)) AS industry, UPPER(TRIM(sub_industry)) AS sub_industry, shipper,
+    TRIM(service_type_description) AS service_type, package_count, weight, 
+    shipment_date, delivery_date, delivery_time, 
     freight_charges,freight_discount_amount,misc_charges,misc_discount_amount, 
-    net_charge_amount, zone, upper(trim(sender_city)) as sender_city, upper(trim(sender_state)) as sender_state,
-    left(sender_zip,5) as sender_zip, upper(trim(recipient_city)) as recipient_city,
-    upper(trim(recipient_state)) as recipient_state, left(recipient_zip,5) as recipient_zip 
-    from libras.shipment_details 
-    where sender_country = 'US' and recipient_country = 'US' and delivery_date is not null
-    and year_week >= {} and year_week < {} and rand() < {}
-    ) t1 
-    where t1.shipment_date is not null) t2 
-    where t2.freight_charges > 0) t3 
-    where t3.zone is not null or trim(zone)!='' 
-    """.format(start_year_week, end_year_week, fraction)
-
+    net_charge_amount, TRIM(zone) AS zone, UPPER(TRIM(sender_city)) AS sender_city, UPPER(TRIM(sender_state)) AS sender_state,
+    LEFT(sender_zip,5) AS sender_zip, UPPER(TRIM(recipient_city)) AS recipient_city,
+    UPPER(TRIM(recipient_state)) AS recipient_state, LEFT(recipient_zip,5) AS recipient_zip
+    FROM libras.shipment_details 
+    WHERE sender_country = 'US' 
+    AND recipient_country = 'US' 
+    AND delivery_date IS NOT NULL
+    AND shipment_date >= STR_TO_DATE("{}", "%Y-%c-%e")
+    AND shipment_date <= STR_TO_DATE("{}", "%Y-%c-%e")
+    AND freight_charges > 0
+    AND zone IS NOT NULL 
+    AND zone !=''
+    AND RAND() < {}
+    """.format(start_date, end_date, fraction)
     # queries database and returns a sample of results
     # records = pd.read_sql_query(sql_query, db).sample(frac=fraction, replace=False)
     records = pd.read_sql_query(sql_query, db)
@@ -118,8 +116,7 @@ def preprocess(records):
     return records
 
 
-
-def batch_query(start, end, frac):
+def batch_query(start_year_month, end_year_month, frac):
     """
     Extracts a fraction of raw shipping records from the database.
 
@@ -140,37 +137,40 @@ def batch_query(start, end, frac):
     # instantiates batch start and end dates as the int of the concatenated string of year + month
     print("Extracting and preprocessing records...")
     extraction_start_time = time.time()
-    start = datetime.strptime(start, "%Y-%m-%d").date()
-    end = datetime.strptime(end, "%Y-%m-%d").date()
-    now = datetime.now().date()
-    now_week = math.ceil(((now - date(year=now.year, month=1, day=1)).days / 365) * 52)
-    now_year_week = int(now.year.__str__() + now_week.__str__().zfill(2))
-    batch_start = start
-    batch_end = start + timedelta(days=30)
-
-    # extracts a fraction of records between a start and end date
+    # Append day 1 to year and month to create datetime object. Day does not affect result
+    start = datetime.strptime(start_year_month + "-1", "%Y-%m-%d").date()
+    end = datetime.strptime(end_year_month + "-1", "%Y-%m-%d").date()
     records = pd.DataFrame()
+    # Set warning for chained assignment to None.
     pd.options.mode.chained_assignment = None
-    num_batches = math.ceil((end - start).days / 30)
-    for i in range(1, num_batches+1):
-        start_week = math.ceil(((batch_start - date(year=batch_start.year, month=1, day=1)).days / 365) * 52)
-        start_year_week = int(batch_start.year.__str__() + start_week.__str__().zfill(2))
-
-        end_week = math.ceil(((batch_end - date(year=batch_end.year, month=1, day=1)).days / 365) * 52)
-        end_year_week = int(batch_end.year.__str__() + end_week.__str__().zfill(2))
-
-        print(f"Running batch {i}/{num_batches}: From year/week {start_year_week} to year/week {end_year_week}")
-        results = query(db, start_year_week, min(now_year_week, end_year_week), frac)
-        print(f"{len(results)} records found...")
+    # Calculate number of months between start and end year/month
+    delta = relativedelta.relativedelta(end, start)
+    num_batches = delta.years * 12 + delta.months + 1
+    month = start.month
+    year = start.year
+    # tqdm progress bar reference: https://github.com/tqdm/tqdm
+    pbar = trange(num_batches)
+    for i in pbar:
+        pbar.set_description(f"Querying {year} {calendar.month_abbr[month]}")
+        # First day of month in batch
+        first_date_of_month = 1
+        start_date = f"{year}-{month}-{first_date_of_month}"
+        # Last day of month in batch
+        last_date_of_month = calendar.monthrange(year, month)[1]
+        end_date = f"{year}-{month}-{last_date_of_month}"
+        # Query from first day to last day of given month
+        results = query(db, start_date, end_date, frac)
+        pbar.set_description(f"Preprocessing {len(results)} records for {year} {calendar.month_abbr[month]}")
         # Only preprocess if batch has records
         if len(results) > 0:
-            print(f"Preprocessing batch...")
             records = records.append(preprocess(results), ignore_index=True)
-
-        batch_start = batch_end
-        batch_end += timedelta(days=30)
-        print("Batch completed. {:.2f}% batches completed. \n".format((i/num_batches)*100))
-
+        # If current month is 12, increment year by 1 and reset month to 1 for next batch
+        if month == 12:
+            month = 1
+            year += 1
+        # Else, increment month by 1
+        else:
+            month += 1
     print(f"{len(records)} records extracted and preprocessed")
     utilities.print_elapsed_time(extraction_start_time)
     return records
@@ -191,19 +191,14 @@ def store(records, frac):
     start_time = time.time()
     filename = create_filename(frac)
     output_path = os.path.join(paths.data_extracted_dir, filename)
-    records.to_csv(output_path + ".csv")
+    joblib.dump(records, output_path+".pkl.z")
+    # records.to_csv(output_path + ".csv")
 
     utilities.print_elapsed_time(start_time)
-    return output_path + ".csv"
+    return output_path + ".pkl.z"
 
 
 if __name__ == '__main__':
-    start, end, frac = ['2018-06-01', '2019-05-31', .01]
-
-    print("Querying and preprocessing records ...")
+    start, end, frac = ['2018-06', '2018-12', 0.01]
     records = batch_query(start, end, frac)
-    print("{} records extracted and preprocessed".format(len(records)))
-
-    print("Storing records ...")
     output_path = store(records, frac)
-    print(f"{len(records)} records stored as {output_path}")
