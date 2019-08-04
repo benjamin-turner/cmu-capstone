@@ -35,14 +35,18 @@ def remove_rows(df):
     print(f"Starting with {report_df_stats(df)}")
     start_time = time.time()
     # Keep Ground and Home Delivery since both are day definite
+    print("Removing non-ground service types since we are only predicting for ground deliveries...")
     services_kept = ["Ground", "Home Delivery"]
     df = df[df['std_service_type'].isin(services_kept)]
     # Keep rows with delivery time
+    print("Removing rows without delivery time...")
     df = df.dropna(subset=['delivery_time'])
     # Remove rows that appear too often with abnormal delivery time = 23:59:59 and 00:12:00
+    print("Removing rows with anomalous delivery time 23:59:59, 00.12.00...")
     df = df[~df['delivery_time'].isin(['23:59:59'])]
     df = df[~df['delivery_time'].isin(['00:12:00'])]
     # Trim empty spaces / Replace empty strings with NA / Remove NA
+    print("Removing rows with malformed zipcodes...")
     df['recipient_zip'] = df['recipient_zip'].str.strip()
     df['recipient_zip'].replace('', np.nan, inplace=True)
     df['sender_zip'] = df['sender_zip'].str.strip()
@@ -133,7 +137,7 @@ def get_zip_details(zipcode1, search):
 
 
 def add_zip_details(df):
-    print("Adding zipcode details...")
+    print(f"Adding zipcode details, {len(df)} iterations expected...")
     search = SearchEngine()
     pop_list_s, pop_density_list_s, houses_list_s = [], [], []
     pop_list_r, pop_density_list_r, houses_list_r = [], [], []
@@ -273,16 +277,8 @@ def remove_columns(df):
     return df
 
 
-def fillna(df):
-    print("Number of nulls in each column:")
-    print(df.isnull().sum())
-    print("Replacing nulls with 0...")
-    df.fillna(0, inplace=True)
-    return df
-
-
 def one_hot_encode(df):
-    print("Applying one hot encoding to categorical columns...")
+    print("Categorizing columns...")
     print(f"Starting with {report_df_stats(df)}")
     start_time = time.time()
     cat_cols = ['shipper', 'zone',
@@ -295,18 +291,29 @@ def one_hot_encode(df):
 
     df[cat_cols] = df[cat_cols].astype('category')
     df[float_cols] = df[float_cols].astype('float64')
+
+    print("Number of nulls in each column:")
+    print(df.isnull().sum())
+    print("\nReplacing nulls with mean/mode...")
+    df[float_cols] = df[float_cols].fillna(df[float_cols].mean())
+    df[cat_cols] = df[cat_cols].fillna(df[cat_cols].mode())
+    print("Number of nulls in each column after replacement:")
+    print(df.isnull().sum(), "\n")
+
+    print("Applying one hot encoding on categorical columns...")
     y = df.Y
     df = df.drop(columns=['Y'])
     # Record feature names for current model
     feature_names = {'feature_names': df.columns.values}
     X = pd.get_dummies(df)
     feature_names['feature_names_dummified'] = X.columns.values
-    print("Feature names:", feature_names['feature_names_dummified'])
+    print("\nFeature names:", feature_names['feature_names_dummified'])
     # Save feature names for use in prediction
     features_path = os.path.join(paths.data_delivery_prediction_features_dir, "feature_names_" + model_id + ".npz")
     np.savez(features_path,
             feature_names=feature_names['feature_names'],
             feature_names_dummified=feature_names['feature_names_dummified'])
+    print(f"Feature names stored in {features_path}\n")
     print(f"Ending with {report_df_stats(X)}.")
     utilities.print_elapsed_time(start_time)
     return X, y
@@ -342,33 +349,37 @@ def split_scale_data(X, y):
     scaler_path = os.path.join(paths.model_scaler_dir, "scaler_" + model_id + ".pkl.z")
     joblib.dump(scaler, scaler_path)
     print("Scaler saved in", scaler_path)
-
     # return training and testing data
-    out = {'X_train': X_train, 'y_train': y_train,
-           'X_test': X_test, 'y_test': y_test}
-
+    datadict = {'X_train': X_train, 'y_train': y_train,
+                'X_test': X_test, 'y_test': y_test}
+    # Save data dictionary file
+    print("\nSaving data dictionary...")
+    datadict_path = os.path.join(paths.data_delivery_prediction_datadict_dir, "datadict_" + model_id + ".npz")
+    np.savez(datadict_path,
+            X_train=datadict['X_train'],
+            y_train=datadict['y_train'],
+            X_test=datadict['X_test'],
+            y_test=datadict['y_test'])
+    print("Data dictionary saved in", datadict_path)
+    # Print sizes
+    print("\nTraining and testing dataset sizes")
     print("X_train", X_train.shape, "y_train", y_train.shape)
     print("X_test", X_test.shape, "y_test", y_test.shape)
     utilities.print_elapsed_time(start_time)
-    return out
+    return datadict
 
 
 def preprocess(extracted_data):
     # Set warning for chained assignment to None.
+    print("Preprocessing data before training...\n")
     pd.options.mode.chained_assignment = None
     model_id = set_model_id()
     df = remove_rows(extracted_data)
     df = add_features(df)
     df = add_time_windows(df)
     df = remove_columns(df)
-    df = fillna(df)
     X, y = one_hot_encode(df)
     datadict = split_scale_data(X, y)
-    # Save data_dict
-    print("Saving data dictionary...")
-    datadict_path = os.path.join(paths.data_delivery_prediction_data_dict_dir, "datadict_" + model_id + ".pkl.z")
-    joblib.dump(datadict, datadict_path)
-    print("Data dictionary saved in", datadict_path)
     return datadict, model_id
 
 if __name__ == '__main__':

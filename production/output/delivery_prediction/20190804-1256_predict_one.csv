@@ -1,0 +1,7 @@
+,service,ship_cost,ground_cost,cost_saving,scheduled_window,pred_ground_window,pred_probability
+0,fedex_first_overnight,141.69,12.4,129.29,1D 00:00 - 07:59,4D 00:00 - 23:59,16.04%
+1,fedex_priority_overnight,91.92,12.4,79.52,1D 08:00 - 10:29,4D 00:00 - 23:59,24.55%
+2,fedex_standard_overnight,88.57,12.4,76.16999999999999,1D 10:30 - 14:59,4D 00:00 - 23:59,39.99%
+3,fedex_2_day_am,38.08,12.4,25.68,2D 00:00 - 10:29,4D 00:00 - 23:59,45.13%
+4,fedex_2_day,34.06,12.4,21.660000000000004,2D 10:30 - 16:29,4D 00:00 - 23:59,58.14%
+5,fedex_express_saver,27.60,12.4,15.200000000000001,3D 00:00 - 16:29,4D 00:00 - 23:59,71.29%
