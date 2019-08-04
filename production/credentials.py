@@ -6,3 +6,4 @@ db = 'libras'
 
 # Stores shippo credentials for cost savings estimation
 shippo_test_key = "shippo_test_eb4bb029d51806329163bda649011f4884498a9f"
+shippo_live_key = "shippo_live_2c908225e8103929f98be994801f7968e7a80b99"

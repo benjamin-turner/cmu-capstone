@@ -37,6 +37,7 @@ def query(db, start_date, end_date, frac):
     AND freight_charges > 0
     AND zone IS NOT NULL 
     AND zone !=''
+    AND weight IS NOT NULL
     AND RAND() < {}
     """.format(start_date, end_date, fraction)
     # queries database and returns a sample of results
@@ -75,8 +76,10 @@ def preprocess(records):
         records = records[records.zone.apply(lambda x: x.isnumeric())]
         records[float_cols] = records[float_cols].astype('float64')
         records.zone %= 10
-        records = records[(records.zone >= 2) & (records.zone <= 8)]
-        records.zone = records.zone.__str__()
+        records['zone'] = records['zone'].astype('int')
+        # Keep zones 2 to 8
+        records = records[records['zone'].isin(range(2,9))]
+        # records.zone = records.zone.__str__()
 
         # strips leading and trailing whitespaces from all string values
         obj_columns = records.select_dtypes(include='object').columns
@@ -190,15 +193,16 @@ def store(records, frac):
     print("Saving records...")
     start_time = time.time()
     filename = create_filename(frac)
-    output_path = os.path.join(paths.data_extracted_dir, filename)
-    joblib.dump(records, output_path+".pkl.z")
-    # records.to_csv(output_path + ".csv")
-
+    output_path = os.path.join(paths.data_extracted_dir, filename) + ".pkl.z"
+    joblib.dump(records, output_path)
+    print(f"Data extracted and stored in {output_path}")
     utilities.print_elapsed_time(start_time)
     return output_path + ".pkl.z"
 
 
 if __name__ == '__main__':
-    start, end, frac = ['2018-06', '2018-12', 0.01]
+    start, end, frac = ['2018-06', '2018-07', 0.01]
     records = batch_query(start, end, frac)
+    print(records['zone'])
+    print(records.iloc[0])
     output_path = store(records, frac)

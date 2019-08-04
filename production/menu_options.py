@@ -2,20 +2,47 @@ from __future__ import print_function, unicode_literals
 import datetime
 import glob
 import zipcodes
-from PyInquirer import Separator
-from PyInquirer import Validator, ValidationError
+from questionary import Separator,Validator, ValidationError
 import paths
+from prompt_toolkit.styles import Style
 
-main_menu_options = ['Run benchmarking',
-                     'Run delivery prediction',
-                     'Extract and preprocess shipment data from database',
-                     'Calculate similarity matrix',
-                     'Train delivery prediction model',
-                     'Exit']
+blue = Style([
+    ('separator', 'fg:#6C6C6C'),
+    ('qmark', 'fg:#E91E63 bold'),
+    ('question', ''),
+    ('selected', 'fg:#2196F3 bold'),
+    ('pointer', 'fg:#2196F3 bold'),
+    ('answer', 'fg:#2196F3 bold'),
+    # Token.QuestionMark: '#E91E63 bold',
+    # Token.Selected: '#673AB7 bold',
+    # Token.Instruction: '',  # default
+    # Token.Answer: '#2196f3 bold',
+    # Token.Question: '',
+])
+custom_style_fancy = Style([
+    ('separator', 'fg:#cc5454'),
+    ('qmark', 'fg:#673ab7 bold'),
+    ('question', ''),
+    ('selected', 'fg:#cc5454'),
+    ('pointer', 'fg:#673ab7 bold'),
+    ('answer', 'fg:#f44336 bold'),
+])
 
-benchmarking_menu_options = ['Run benchmarking for another SID',
-                            'Go back to main menu',
-                            'Exit']
+custom_style_dope = Style([
+    ('separator', 'fg:#6C6C6C'),
+    ('qmark', 'fg:#FF9D00 bold'),
+    ('question', ''),
+    ('selected', 'fg:#5F819D'),
+    ('pointer', 'fg:#FF9D00 bold'),
+    ('answer', 'fg:#5F819D bold'),
+])
+
+custom_style_genius = Style([
+    ('qmark', 'fg:#E91E63 bold'),
+    ('question', ''),
+    ('selected', 'fg:#673AB7 bold'),
+    ('answer', 'fg:#2196f3 bold'),
+])
 
 delivery_prediction_menu_options = ['Predict cost savings for one shipment',
                                     'Predict delivery time window probability for batch of shipments',
@@ -50,6 +77,10 @@ benchmarking_preprocess_initial_options = ['Average of all',
 benchmarking_preprocess_menu_options = ['Create another similarity matrix',
                                         'Go back to main menu',
                                         'Exit']
+
+delivery_prediction_preprocess_menu_options = ['Train a new model',
+                                                'Go back to main menu',
+                                                'Exit']
 
 class DateValidator(Validator):
     '''
@@ -161,6 +192,18 @@ class SIDValidator(Validator):
                 cursor_position=len(document.text))  # Move cursor to end
 
 
+class sumToOneValidator(Validator):
+    def validate(self, document):
+        import builtins
+        ok = False
+        if document.text.upper() in builtins.sid_list:
+            ok = True
+        if not ok:
+            raise ValidationError(
+                message='SID not found in selected similarity matrix.',
+                cursor_position=len(document.text))  # Move cursor to end
+
+
 models = []
 for idx, model in enumerate(glob.glob(paths.model_dir + "/*.pkl.z")):
     models.append(model)
@@ -177,10 +220,7 @@ KPI_databases = []
 for idx, file_path in enumerate(glob.glob(paths.data_benchmarking_dir + "/*KPI*")):
     KPI_databases.append(file_path)
 
-
-
-
-benchmarking_initial_questions = [
+benchmarking_matrix_kpidatabase = [
     {
         'type': 'list',
         'name': 'similarity_matrix',
@@ -193,6 +233,9 @@ benchmarking_initial_questions = [
         'message': 'Which KPI database to use for calculation?',
         'choices': KPI_databases
     },
+]
+
+benchmarking_kpi = [
     {
         'type': 'input',
         'name': 'sid',
@@ -206,21 +249,13 @@ benchmarking_initial_questions = [
         'message': 'Please enter the similarity threshold (between 0 and 100)',
         'validate': PercentileValidator,
         'filter': lambda val: int(val)
-    }
-]
-
-benchmarking_metrics_selection_questions = [
+    },
     {
         'type': 'checkbox',
         'qmark': '-',
         'message': 'Select benchmarking metrics',
-        'name': 'benchmarking_metrics_selection',
+        'name': 'kpi_selected',
         'choices': [
-            # Separator('= Peers ='),
-            # {
-            #     'name': 'Number of peers',
-            #     'checked': True
-            # },
             Separator('= Spend ='),
             {
                 'name': benchmarking_metric_options[0]
@@ -252,8 +287,6 @@ benchmarking_metrics_selection_questions = [
                 'name': benchmarking_metric_options[8]
             }
         ],
-        'validate': lambda answer: 'You must choose at least one metric.'
-            if len(answer) == 0 else True
     }
 ]
 
@@ -316,54 +349,6 @@ extract_data_questions = [
 
 ]
 
-benchmarking_initial_questions = [
-    {
-        'type': 'list',
-        'name': 'similarity_matrix',
-        'message': 'Which similarity matrix to use for calculation?',
-        'choices': similarity_matrices
-    },
-    {
-        'type': 'list',
-        'name': 'kpi_database',
-        'message': 'Which KPI database to use for calculation?',
-        'choices': KPI_databases
-    },
-    {
-        'type': 'input',
-        'name': 'sid',
-        'message': 'Please enter the business SID that you wish to check on',
-        'validate': SIDValidator,
-        'filter': lambda val: val.upper()
-    },
-    {
-        'type': 'input',
-        'name': 'percentile',
-        'message': 'Please enter the similarity threshold (between 0 and 100)',
-        'validate': PercentileValidator,
-        'filter': lambda val: int(val)
-    }
-]
-
-
-main_menu = [
-    {
-        'type': 'list',
-        'name': 'main_menu',
-        'message': '---Main Menu---',
-        'choices': main_menu_options
-    }
-]
-
-benchmarking_menu = [
-    {
-        'type': 'list',
-        'name': 'benchmarking_menu',
-        'message': '---Benchmarking---',
-        'choices': benchmarking_menu_options
-    }
-]
-
 delivery_prediction_menu = [
     {
         'type': 'list',
@@ -373,10 +358,10 @@ delivery_prediction_menu = [
     }
 ]
 
-model_menu = [
+delivery_prediction_model = [
     {
         'type': 'list',
-        'name': 'model_menu',
+        'name': 'delivery_prediction_model_choice',
         'message': 'Which model to use for prediction?',
         'choices': models
     }
@@ -400,6 +385,59 @@ extract_menu = [
     }
 ]
 
+benchmarking_metric_weights = [
+    {
+        'type': 'input',
+        'name': 'weight_vs',
+        'message': 'Volumetric Scale (VS) Weight',
+        'validate': FractionValidator,
+        'default': '0.1',
+        'filter': lambda val: float(val)
+    },
+    {
+        'type': 'input',
+        'name': 'weight_vpz',
+        'message': 'Volumetric Proportion by Zone (VPZ) Weight',
+        'validate': FractionValidator,
+        'default': '0.1',
+        'filter': lambda val: float(val)
+    },
+    {
+        'type': 'input',
+        'name': 'weight_vpm',
+        'message': 'Volumetric Proportion by Month (VPM) Weight',
+        'validate': FractionValidator,
+        'default': '0.1',
+        'filter': lambda val: float(val)
+    },
+    {
+        'type': 'input',
+        'name': 'weight_ws',
+        'message': 'Weight Scale (WS) Weight',
+        'validate': FractionValidator,
+        'default': '0.1',
+        'filter': lambda val: float(val)
+    },
+    {
+        'type': 'input',
+        'name': 'weight_wpz',
+        'message': 'Weight Proportion by Zone (WPS) Weight',
+        'validate': FractionValidator,
+        'default': '0.1',
+        'filter': lambda val: float(val)
+    },
+    {
+        'type': 'input',
+        'name': 'weight_wpm',
+        'message': 'Weight Proportion by Month (WPM) Weight',
+        'validate': FractionValidator,
+        'default': '0.1',
+        'filter': lambda val: float(val)
+    }
+]
+
+
+
 benchmarking_preprocess_questions = [
     {
         'type': 'list',
@@ -415,5 +453,23 @@ benchmarking_preprocess_menu = [
         'name': 'benchmarking_preprocess_menu',
         'message': '---Benchmarking: Create similarity matrix ---',
         'choices': benchmarking_preprocess_menu_options
+    }
+]
+
+extracted_data = [
+    {
+        'type': 'list',
+        'name': 'extracted_data_choice',
+        'message': 'Select extracted data file to train a new model on',
+        'choices': extracted_data_files
+    }
+]
+
+delivery_prediction_preprocess_menu = [
+    {
+        'type': 'list',
+        'name': 'delivery_prediction_preprocess_menu',
+        'message': '---Delivery Prediction: Train a new model ---',
+        'choices': delivery_prediction_preprocess_menu_options
     }
 ]

@@ -1,165 +1,294 @@
 # coding: utf8
-
 from __future__ import print_function, unicode_literals
 import os
 import sys
 import joblib
 import numpy as np
-from PyInquirer import prompt
-from examples import custom_style_3
 import benchmarking
-import delivery_prediction_predict
+import delivery_prediction_predict, delivery_prediction_preprocess
 import extract
 import menu_options
 import paths
+import questionary
+from questionary import Separator, Choice, prompt
+from menu_options import blue
+import builtins
 
 
 def load_main_menu():
-    main_menu_choice = prompt(menu_options.main_menu, style=custom_style_3)
-    user_choice = menu_options.main_menu_options.index(main_menu_choice['main_menu']) + 1
-    if user_choice == 1:
+    menu_choice = questionary.select(
+        "---Main Menu---",
+        choices=['Run benchmarking',
+                 'Run delivery prediction',
+                 'Extract and preprocess shipment data from database',
+                 'Calculate similarity matrix',
+                 'Train delivery prediction model',
+                 'Exit'],
+        style=blue).ask()
+    if menu_choice == 'Run benchmarking':
         load_benchmarking_menu()
-    if user_choice == 2:
+    elif menu_choice == 'Run delivery prediction':
         load_delivery_prediction_menu()
-    if user_choice == 3:
+    elif menu_choice == 'Extract and preprocess shipment data from database':
         load_extract_menu()
-    if user_choice == 4:
+    elif menu_choice == 'Calculate similarity matrix':
         load_benchmarking_preprocess_menu()
-    if user_choice == 5:
-        # TODO: Royce code for preprocessing and training
-        sys.exit()
-    else:
+    elif menu_choice == 'Train delivery prediction model':
+        load_delivery_prediction_train_menu()
+    elif menu_choice == 'Exit':
         sys.exit()
 
 
 def load_benchmarking_menu():
-    # Get user input for SID and pecentile
-    benchmarking_initial_answers = prompt(menu_options.benchmarking_initial_questions, style=custom_style_3)
-    sid = benchmarking_initial_answers['sid']
-    percentile = benchmarking_initial_answers['percentile']
-    benchmarking_metric_selection_answers = prompt(menu_options.benchmarking_metrics_selection_questions, style=custom_style_3)
-    metrics_selected = benchmarking_metric_selection_answers['benchmarking_metrics_selection']
+    # Get matrix and KPI database
+    benchmarking_matrix_kpidatabase_choice = prompt(menu_options.benchmarking_matrix_kpidatabase, style=blue)
+    print("Loading saved matrix and KPI database...")
+    preloaded_matrix = joblib.load(benchmarking_matrix_kpidatabase_choice['similarity_matrix'])
+    builtins.sid_list = preloaded_matrix.columns.values
+    preloaded_KPIs = joblib.load(benchmarking_matrix_kpidatabase_choice['kpi_database'])
+    print("Matrix and KPI database loaded.")
+    get_kpi(preloaded_matrix, preloaded_KPIs)
+    
+
+def get_kpi(preloaded_matrix, preloaded_KPIs):
+    benchmarking_kpi_choice = prompt(menu_options.benchmarking_kpi, style=blue)
+    sid = benchmarking_kpi_choice['sid']
+    percentile = benchmarking_kpi_choice['percentile']
+    kpi_selected = benchmarking_kpi_choice['kpi_selected']
     # Display metrics for user selection
-    benchmarking.get_selected_metrics(metrics_selected, sid, percentile, preloaded_matrix, preloaded_KPIs)
+    benchmarking.get_selected_metrics(kpi_selected, sid, percentile, preloaded_matrix, preloaded_KPIs)
     # Display menu
-    benchmarking_menu_choice = prompt(menu_options.benchmarking_menu, style=custom_style_3)
-    user_choice = menu_options.benchmarking_menu_options.index(benchmarking_menu_choice['benchmarking_menu']) + 1
-    if user_choice == 1:
-        load_benchmarking_menu()
-    elif user_choice == 2:
+    choice_after = questionary.select(
+        "---Run Benchmarking---",
+        choices=['Run benchmarking for another SID',
+                 'Go back to main menu',
+                 'Exit'],
+        style=blue).ask()
+    if choice_after == 'Run benchmarking for another SID':
+        get_kpi()
+    elif choice_after == 'Go back to main menu':
         load_main_menu()
-    else:
+    elif choice_after == 'Exit':
         sys.exit()
-
-
+        
+        
 def load_delivery_prediction_menu():
-    delivery_prediction_menu_choice = prompt(menu_options.delivery_prediction_menu, style=custom_style_3)
-    user_choice = menu_options.delivery_prediction_menu_options.index(delivery_prediction_menu_choice['delivery_prediction_menu']) + 1
-    # Get user choice for model and scaler
-    model_menu_choice = prompt(menu_options.model_menu, style=custom_style_3)
-    model_path = model_menu_choice['model_menu']
-    scaler_dir_scaler_ = os.path.join(paths.model_scaler_dir,"scaler_")
-    scaler_path = scaler_dir_scaler_ + model_path.split('_', )[1]
-    if user_choice == 1:
-        load_predict_one_menu(scaler_path, model_path)
-    elif user_choice == 2:
-        # TODO: load_predict_batch_menu
-        sys.exit()
+    # Get model and corresponding scaler and feature names
+    delivery_prediction_model_choice = prompt(menu_options.delivery_prediction_model, style=blue)
+    model_path = delivery_prediction_model_choice['delivery_prediction_model_choice']
+    model_id = model_path.split('_', )[1].split('.', )[0]
+    scaler_path = os.path.join(paths.model_scaler_dir, "scaler_") + model_id + ".pkl.z"
+    feature_names_path = os.path.join(paths.data_delivery_prediction_features_dir, "feature_names_") + model_id + ".npz"
+    scaler_exists = os.path.exists(scaler_path)
+    feature_names_exists = os.path.exists(feature_names_path)
+    print("\nScaler and feature name files are automatically selected based on model_id string after the first underscore")
+    print(f"Model_id found: {model_id}")
+    print(f"Looking for scaler in {scaler_path}, File exists: {scaler_exists}")
+    print(f"Looking for feature names in {feature_names_path}, File exists: {feature_names_exists}")
+    if scaler_exists and feature_names_exists:
+        print("\nLoading model, scaler and feature names...")
+        model = joblib.load(model_path)
+        scaler = joblib.load(scaler_path)
+        feature_names = np.load(feature_names_path, allow_pickle=True)
+        print("Model, scaler and feature names loaded.\n")
+        get_prediction(model, scaler, feature_names)
     else:
+        print("Please make sure scaler/feature name files are stored in the correct directories")
+        print("Returning to main menu...")
+        load_main_menu()
+
+
+def get_prediction(model, scaler, feature_names):
+    # Display menu
+    prediction_choice = questionary.select(
+        "Which prediction to run?",
+        choices=['Predict cost savings for one shipment',
+                 'Predict delivery time window probability for batch of shipments',
+                 'Go back to main menu'],
+        style = blue).ask()
+    if prediction_choice == 'Predict cost savings for one shipment':
+        predict_one(model, scaler, feature_names)
+    elif prediction_choice == 'Predict delivery time window probability for batch of shipments':
+        predict_batch(model, scaler, feature_names)
+    elif prediction_choice == 'Go back to main menu':
+        load_main_menu()
+    get_prediction()
+
+
+def predict_one(model, scaler, feature_names):
+    predict_one_choice = prompt(menu_options.delivery_prediction_one_questions, style=blue)
+    delivery_prediction_predict.predict_one_cost_savings(predict_one_choice['shipment_date'],
+                                                          predict_one_choice['shipper'],
+                                                          predict_one_choice['weight'],
+                                                          predict_one_choice['sender_zip'],
+                                                          predict_one_choice['recipient_zip'],
+                                                          model, scaler, feature_names)
+    # Display menu
+    choice_after = questionary.select(
+        "---Predict cost savings for one shipment---",
+        choices=['Predict cost savings for another shipment',
+                 'Predict delivery time window probability for batch of shipments',
+                 'Load another model for prediction',
+                 'Go back to main menu',
+                 'Exit'],
+        style=blue).ask()
+    if choice_after == 'Predict cost savings for another shipment':
+        predict_one(model, scaler, feature_names)
+    elif choice_after == 'Predict delivery time window probability for batch of shipments':
+        predict_batch(model, scaler, feature_names)
+    elif choice_after == 'Load another model for prediction':
+        load_delivery_prediction_menu()
+    elif choice_after == 'Go back to main menu':
+        load_main_menu()
+    elif choice_after == 'Exit':
         sys.exit()
 
 
-def load_predict_one_menu(scaler_path, model_path):
-    load_predict_one_questions(scaler_path, model_path)
-    while True:
-        predict_one_menu_choice = prompt(menu_options.predict_one_menu, style=custom_style_3)
-        predict_one_choice = menu_options.predict_one_menu_options.index(
-            predict_one_menu_choice['predict_one_menu']) + 1
-        if predict_one_choice == 1:
-            load_predict_one_questions(scaler_path, model_path)
-        elif predict_one_choice == 2:
-            load_main_menu()
-        else:
-            sys.exit()
-
-
-def load_predict_one_questions(scaler_path, model_path):
-    # Get user input for shipment_date, shipper, weight, sender_zip, recipient_zip,
-    predict_one_input = prompt(menu_options.delivery_prediction_one_questions, style=custom_style_3)
-    # pprint(predict_one_input)
-    print(" ")
-    # Run prediction
-    df = delivery_prediction_predict.predict_one_cost_savings(predict_one_input['shipment_date'],
-                                                              predict_one_input['shipper'],
-                                                              predict_one_input['weight'],
-                                                              predict_one_input['sender_zip'],
-                                                              predict_one_input['recipient_zip'],
-                                                              # For demo
-                                                              scaler_path, preloaded_model)
-                                                              # scaler_path, model_path)
-    return df
+def predict_batch(model, scaler, feature_names):
+    # TODO: predict_batch
+    pass
 
 
 def load_extract_menu():
-    extract_data_answers = prompt(menu_options.extract_data_questions, style=custom_style_3)
-    records = extract.batch_query(extract_data_answers['start_date'],
-                                  extract_data_answers['end_date'],
-                                  extract_data_answers['sample_size'])
-    output_path = extract.store(records, extract_data_answers['sample_size'])
-    print(f"Data extracted and stored in {output_path}")
-    extract_menu_choice = prompt(menu_options.extract_menu, style=custom_style_3)
-    extract_menu_choice_no = menu_options.extract_menu_options.index(
-        extract_menu_choice['extract_menu']) + 1
-    if extract_menu_choice_no == 1:
+    extract_data_choice = prompt(menu_options.extract_data_questions, style=blue)
+    records = extract.batch_query(extract_data_choice['start_date'],
+                                  extract_data_choice['end_date'],
+                                  extract_data_choice['sample_size'])
+    extract.store(records, extract_data_choice['sample_size'])
+    # Display menu
+    choice_after = questionary.select(
+        "---Extract and preprocess shipment data from database---",
+        choices=['Extract data again',
+                 'Go back to main menu',
+                 'Exit'],
+        style=blue).ask()
+    if choice_after == 'Extract data again':
         load_extract_menu()
-    elif extract_menu_choice_no == 2:
+    elif choice_after == 'Go back to main menu':
         load_main_menu()
-    else:
+    elif choice_after == 'Exit':
         sys.exit()
 
 
 def load_benchmarking_preprocess_menu():
-    # Get user input for SID and pecentile
-    benchmarking_preprocess_answers = prompt(menu_options.benchmarking_preprocess_questions, style=custom_style_3)
-    similarity_matrix_choice = benchmarking_preprocess_answers['benchmarking_preprocess_answer']
-    print(f"You have chosen to use the {similarity_matrix_choice} to generate the new similarity matrix")
-    # Display menu
-    benchmarking_preprocess_menu_choice = prompt(menu_options.benchmarking_preprocess_menu, style=custom_style_3)
-    user_choice = menu_options.benchmarking_preprocess_menu_options.index(benchmarking_preprocess_menu_choice['benchmarking_preprocess_menu']) + 1
-    if user_choice == 1:
-        load_benchmarking_preprocess_menu()
-    elif user_choice == 2:
+    # Load extracted data
+    extracted_data = load_extracted_data()
+    calculate_matrix(extracted_data)
+
+
+def calculate_matrix(extracted_data):
+    # Get user input for metric weights
+    metric_weights = {
+        'weight_vs': 1 / 6,
+        'weight_vpz': 1 / 6,
+        'weight_vpm': 1 / 6,
+        'weight_ws': 1 / 6,
+        'weight_wpz': 1 / 6,
+        'weight_wpm': 1 / 6
+    }
+    EVEN = questionary.confirm("Create a new similarity matrix with even matrix weights?").ask()
+    if not EVEN:
+        print("\nPlease enter weight for each matrix. Please make sure that sum of all 6 weights is approximately = 1")
+        metric_weights = prompt(menu_options.benchmarking_metric_weights, style=blue)
+        metric_weights_sum = sum(metric_weights.values())
+        print("\nRecalibrating weights...")
+        for weight in metric_weights:
+            metric_weights[weight] = metric_weights[weight] / metric_weights_sum
+    print("\nWeights:", metric_weights, "\n")
+    # TODO: calculate matrix
+    choice_after = questionary.select(
+        "---Calculate similarity matrix---",
+        choices=['Calculate another similarity matrix',
+                 'Go back to main menu',
+                 'Exit'],
+        style=blue).ask()
+    if choice_after == 'Calculate another similarity matrix':
+        calculate_matrix(extracted_data)
+    elif choice_after == 'Go back to main menu':
         load_main_menu()
-    else:
+    elif choice_after == 'Exit':
         sys.exit()
 
-# For demo purposes, we preload the models
-print("Preloading delivery prediction model...")
-# preloaded_model = joblib.load(paths.model_cmu)
-preloaded_model = "FILLER"
-print("Model preloaded.")
 
-print("Preloading benchmarking data...")
-# Preload the similarity score matrix
-preloaded_matrix = joblib.load(paths.benchmarking_ss_matrix_cmu)
-# Convert SS matrix to np array for performance
-full_ss_matrix_optimized = np.array(preloaded_matrix)
-# Collect all sid values from SS matrix
-full_matrix_indices = np.array(preloaded_matrix.index.values)
-import builtins
-builtins.sid_list = preloaded_matrix.columns.values
-# Prelaod the KPI database
-preloaded_KPIs = joblib.load(paths.benchmarking_kpi_cmu)
-# Convert KPI database to np array for performance
-full_kpi_optimized = np.array(preloaded_KPIs)
-# Collect all sid values from KPI database
-full_kpi_indices = np.array(preloaded_KPIs.index.values)
-print("Benchmarking data preloaded.")
+def load_delivery_prediction_train_menu():
+    print("\nComplete steps to train a model: Extract data -> Preprocess data -> Train model")
+    print("\nIf you have yet to extract a new dataset, please do so with Option 1. \nAlternatively, execute Option 3 from the Main Menu.")
+    print("\nIf you have already extracted a new dataset, please choose Option 2: Preprocess data -> Train model")
+    print("\nPlease only choose Option 3: Train model if you have trained a model previously, \nand only wish to try again on the same dataset with different hyperparameters")
+    train_steps = questionary.select(
+        "Select steps to execute",
+        choices=['Extract data -> Preprocess data -> Train model',
+                 'Preprocess data -> Train model',
+                 'Train model'],
+        style=blue).ask()
+    if train_steps == 'Extract data -> Preprocess data -> Train model':
+        load_extract_menu()
+    elif train_steps == 'Preprocess data -> Train model':
+        extracted_data = load_extracted_data()
+        data_dict, model_id = preprocess(extracted_data)
+        train(data_dict, model_id)
+    elif train_steps == 'Train model':
+        # Choose data_dict
+        # Extract model_id from data_dict
+        train(data_dict, model_id)
+    # Display menu
+    choice_after = questionary.select(
+        "---Train delivery prediction model---",
+        choices=['Train another model on same data but with different parameters',
+                 'Go back to main menu',
+                 'Exit'],
+        style=blue).ask()
+    if choice_after == 'Train another model on same data but with different parameters':
+        train(data_dict)
+    elif choice_after == 'Go back to main menu':
+        load_main_menu()
+    elif choice_after == 'Exit':
+        sys.exit()
+
+
+def preprocess(extracted_data):
+    data_dict, model_id = delivery_prediction_preprocess.preprocess(extracted_data)
+    return data_dict, model_id
+
+
+def train(data_dict, model_id):
+    # Prompt for user input for parameters e.g. estimators, depth
+    n_trees = questionary.text(
+        "Enter number of trees",
+        style=blue,
+        default=25,
+        validate=menu_options.NumberValidator,
+        filter=lambda val: int(val)).ask()    
+    depth = questionary.text(
+        "Enter maximum depth",
+        style=blue,
+        default=50,
+        validate=menu_options.NumberValidator,
+        filter=lambda val: int(val)).ask()
+    # TODO: train
+    pass
+
+
+def load_extracted_data():
+    # Display menu
+    data_extracted = questionary.select(
+        "You will need to extract new data before training a new model/calculating a new similarity matrix",
+        choices=['I have already extracted data',
+                 'I need to extract new data',
+                 'Go back to main menu'],
+        style=blue).ask()
+    # Load model
+    if data_extracted == 'I have already extracted data':
+        extracted_data_choice = prompt(menu_options.extracted_data, style=blue)
+        print("\nLoading data file...")
+        extracted_data = joblib.load(extracted_data_choice['extracted_data_choice'])
+        print("Data file loaded.\n")
+        return extracted_data
+    elif data_extracted == 'I need to extract new data':
+        load_extract_menu()
+    elif data_extracted == 'Go back to main menu':
+        load_main_menu()
+
 
 print("Welcome to the 71bs dashboard")
 load_main_menu()
-
-
-
-
-

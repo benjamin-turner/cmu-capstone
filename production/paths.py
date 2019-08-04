@@ -14,7 +14,7 @@ data_benchmarking_dir = os.path.join(data_dir, 'benchmarking')
 data_delivery_prediction_preprocessed_dir = os.path.join(data_delivery_prediction_dir, 'preprocessed')
 data_delivery_prediction_features_dir = os.path.join(data_delivery_prediction_dir, 'features')
 data_delivery_prediction_external_dir = os.path.join(data_delivery_prediction_dir, 'external')
-data_delivery_prediction_data_dict_dir = os.path.join(data_delivery_prediction_dir, 'data_dict')
+data_delivery_prediction_data_dict_dir = os.path.join(data_delivery_prediction_dir, 'datadict')
 data_delivery_prediction_input_dir = os.path.join(data_delivery_prediction_dir, 'input')
 data_delivery_prediction_windows_dir = os.path.join(data_delivery_prediction_dir, 'windows')
 data_benchmarking_preprocessed_dir = os.path.join(data_benchmarking_dir, 'benchmarking')
@@ -28,8 +28,8 @@ model_scaler_dir = os.path.join(model_dir, 'scaler')
 # Static file names
 data_delivery_prediction_preprocessed_dir_cmu = os.path.join(data_delivery_prediction_preprocessed_dir, 'delivery_prediction_data_preprocessed_cmu.pkl.z')
 data_delivery_prediction_features_dir_cmu = os.path.join(data_delivery_prediction_features_dir, 'feature_names_cmu.npz')
-data_delivery_prediction_msa_dir_cmu = os.path.join(data_delivery_prediction_external_dir, 'zip_to_msa_numbers_cmu.csv')
-data_delivery_prediction_data_dict_dir_cmu = os.path.join(data_delivery_prediction_data_dict_dir, 'delivery_prediction_data_dict_cmu.npz')
+data_delivery_prediction_zip_to_msa_cmu = os.path.join(data_delivery_prediction_external_dir, 'zip_to_msa_numbers_cmu.csv')
+data_delivery_prediction_data_dict_dir_cmu = os.path.join(data_delivery_prediction_data_dict_dir, 'datadict_cmu.npz')
 
 model_cmu = os.path.join(model_dir, 'model_cmu.pkl.z')
 scaler_cmu = os.path.join(model_scaler_dir, 'scaler_cmu.pkl.z')
@@ -37,6 +37,8 @@ windows_cmu = os.path.join(data_delivery_prediction_windows_dir, 'windows_cmu.pk
 
 benchmarking_ss_matrix_cmu = os.path.join(data_benchmarking_dir, 'full_similarity_score_table.pickle')
 benchmarking_kpi_cmu = os.path.join(data_benchmarking_dir, 'full_KPI_database_v2.pickle')
+
+extracted_data_sample_cmu = os.path.join(data_extracted_dir, 'extract_sample_cmu.pkl.z')
 
 # Unit test cases
 if __name__ == '__main__':

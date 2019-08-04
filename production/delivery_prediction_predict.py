@@ -119,7 +119,7 @@ def get_msa_details(sender_zip, recipient_zip):
             are in same MSA
     """
     # Read external CSV that contains zipcode mapping to MSA codes
-    zipcode_to_msa_df = pd.read_csv(paths.data_delivery_prediction_msa_dir_cmu, dtype=object)
+    zipcode_to_msa_df = pd.read_csv(paths.data_delivery_prediction_zip_to_msa_cmu, dtype=object)
     zipcode_to_msa_df.columns = ['zipcode', 'state', 'msa_num', 'county_num', 'msa_name']
     zip_msa_num_dict = zipcode_to_msa_df.set_index('zipcode')['msa_num'].to_dict()
     zip_msa_name_dict = zipcode_to_msa_df.set_index('zipcode')['msa_name'].to_dict()
@@ -188,7 +188,7 @@ def get_shippo_details(shipper, weight, sender_zip, sender_state, recipient_zip,
     """
     shipper = str.lower(shipper)
     # Shippo API key is stored in credentials
-    shippo.api_key = credentials.shippo_test_key
+    shippo.api_key = credentials.shippo_live_key
     address_from = {"state": sender_state, "zip": sender_zip, "country": "US"}
     address_to = {"state": recipient_state, "zip": recipient_zip, "country": "US"}
     # Create parcel with true weight and dummy dimensions
@@ -278,7 +278,7 @@ def get_shippo_details(shipper, weight, sender_zip, sender_state, recipient_zip,
         return df, zone
 
 
-def preprocess_one(shipment_date, shipper, std_weight, sender_zip, recipient_zip, scaler):
+def preprocess_one(shipment_date, shipper, std_weight, sender_zip, recipient_zip, scaler, feature_names):
     """
     Preprocesses input to create features that model will
     predict on.
@@ -290,6 +290,7 @@ def preprocess_one(shipment_date, shipper, std_weight, sender_zip, recipient_zip
             sender_zip (str): sender 5-digit zipcode
             recipient_zip (str): recipient 5-digit zipcode
             scaler (str): file path to scaler based on model
+            feature_names (npz object):
 
     Returns:
             test (np array object): input for model prediction.
@@ -314,8 +315,6 @@ def preprocess_one(shipment_date, shipper, std_weight, sender_zip, recipient_zip
     sender_pop, sender_pop_density, sender_houses, sender_state = get_zip_details(sender_zip, search)
     # Get rates dataframe and zone
     rates_df, zone = get_shippo_details(shipper, std_weight, sender_zip, sender_state, recipient_zip, recipient_state)
-    # Load feature names saved by CMU
-    feature_names = np.load(paths.data_delivery_prediction_features_dir_cmu, allow_pickle=True)
     # Create empty dataframe with correct columns that model was trained on
     df = pd.DataFrame(columns=feature_names['feature_names'])
     # Add new row into df with test data
@@ -340,12 +339,12 @@ def preprocess_one(shipment_date, shipper, std_weight, sender_zip, recipient_zip
     test = df.loc[0].values
     # Scale data with saved min-max scaler
     test = test.reshape(1, -1)
-    scaler = joblib.load(scaler)
+    # scaler = joblib.load(scaler)
     test = scaler.transform(test)
     utilities.print_elapsed_time(start_time)
-    print(" ")
-    print("preprocess")
-    print(test, rates_df)
+    # print(" ")
+    # print("preprocess")
+    # print(test, rates_df)
     return test, rates_df
 
 
@@ -375,9 +374,9 @@ def predict_time_windows(test, model):
     pred = model.predict(test)
     pred_proba = model.predict_proba(test)
     utilities.print_elapsed_time(start_time)
-    print(" ")
-    print("predict")
-    print(pred, pred_proba)
+    # print(" ")
+    # print("predict")
+    # print(pred, pred_proba)
     return pred, pred_proba
 
 
@@ -433,7 +432,7 @@ def format_cost_savings(pred, pred_proba, rates_df):
 
 
 def predict_one_cost_savings(shipment_date, shipper, weight, sender_zip, recipient_zip,
-                             scaler=paths.scaler_cmu, model=paths.model_cmu):
+                             model, scaler, feature_names):
     """
     Combines preprocessing, prediction, output formatting
     functions to create dataframe for output to user
@@ -444,11 +443,12 @@ def predict_one_cost_savings(shipment_date, shipper, weight, sender_zip, recipie
             std_weight (float): shipment weight
             sender_zip (str): sender 5-digit zipcode
             recipient_zip (str): recipient 5-digit zipcode
-            scaler (str): file path to scaler corresponding to
-            selected model. Default: CMU scaler
-
             model (str): file path to model that user selected in
             console. Default: CMU model
+            scaler (str): file path to scaler corresponding to
+            selected model. Default: CMU scaler
+            feature_names (npz object):
+
 
     Returns:
             Pandas dataframe object: dataframe with service type,
@@ -457,9 +457,9 @@ def predict_one_cost_savings(shipment_date, shipper, weight, sender_zip, recipie
             as columns
     """
     # Create model_id using current timestamp
-    model_id = utilities.create_id()
+    model_id = utilities.get_timestamp()
     # Preprocess user input
-    preprocessed_input, rates_df = preprocess_one(shipment_date, shipper, weight, sender_zip, recipient_zip, scaler)
+    preprocessed_input, rates_df = preprocess_one(shipment_date, shipper, weight, sender_zip, recipient_zip, scaler, feature_names)
     # Predict based on preprocessed input
     pred, pred_proba = predict_time_windows(preprocessed_input, model)
     # Merge results into dataframe for output
