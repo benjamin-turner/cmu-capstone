@@ -407,9 +407,8 @@ def create_filename(artifact_type):
             <artifact_type>_<timestamp in YYYYMMDD-HHMM format>.pkl.z
     '''
     timestamp = utilities.get_timestamp()
-    output_path = os.path.join(orig_dir, paths.data_benchmarking_dir) 
-    filename = output_path + "\\"+ artifact_type + "_" + timestamp + ".pkl.z"
-    return filename
+    output_path = os.path.join(paths.data_benchmarking_dir, artifact_type + "_" + timestamp + ".pkl.z")
+    return output_path
 ####################################################################################################################    
 #Create full similarity score matrix
     
