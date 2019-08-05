@@ -491,10 +491,12 @@ def validate_batch(df):
         # Validate zip codes
         ok = False
         if row.sender_zip.isdigit() and len(row.sender_zip) == 5:
-            ok = zipcodes.is_real(row.sender_zip)
+            ok = zipcodes.is_real(row.sender_zip) and \
+                 (zipcodes.matching(row.sender_zip)[0]['state'] != 'HI') and \
+                 (zipcodes.matching(row.sender_zip)[0]['state'] != 'AK')
         if not ok:
             print(
-                f"Found invalid sender zipcode `{row.sender_zip}` in row {row.Index}. Please amend zipcode before trying again.")
+                f"Found invalid sender zipcode `{row.sender_zip}` in row {row.Index}.\nPlease endPlease amend zipcode before trying again.")
             all_ok = False
         # Validate zip codes
         ok = False

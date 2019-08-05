@@ -58,13 +58,20 @@ class DateValidator(Validator):
         Returns:
             True if date is in valid format
         """
+        ok = False
         try:
-            datetime.datetime.strptime(document.text, '%Y-%m-%d')
+            date = datetime.datetime.strptime(document.text, '%Y-%m-%d')
         except ValueError:
             raise ValidationError(
                 message='Please enter a valid date in YYYY-MM-DD format',
                 cursor_position=len(document.text))  # Move cursor to end
-
+        # Pandas datetime conversion only works for certain time period
+        if 2012 <= date.year <= 2112:
+            ok = True
+        if not ok:
+            raise ValidationError(
+                message='Year must be between 2012 and 2112',
+                cursor_position=len(document.text))  # Move cursor to end
 
 class YearMonthValidator(Validator):
     """Contains class method to validate year and month
@@ -82,11 +89,19 @@ class YearMonthValidator(Validator):
         Returns:
             True if date is in valid format
         """
+        ok = False
         try:
-            datetime.datetime.strptime(document.text, '%Y-%m')
+            date = datetime.datetime.strptime(document.text + "-1", "%Y-%m-%d").date()
         except ValueError:
             raise ValidationError(
                 message='Please enter a valid date in YYYY-MM-DD format',
+                cursor_position=len(document.text))  # Move cursor to end
+        # Pandas datetime conversion only works for certain time period
+        if 2012 <= date.year <= 2112:
+            ok = True
+        if not ok:
+            raise ValidationError(
+                message='Year must be between 2012 and 2112',
                 cursor_position=len(document.text))  # Move cursor to end
 
 
@@ -121,11 +136,12 @@ class EndYearMonthValidator(Validator):
                 cursor_position=len(document.text))  # Move cursor to end
         delta = relativedelta.relativedelta(end_date, start_date)
         num_months = delta.years * 12 + delta.months + 1
-        if num_months >= 12:
+        # Pandas datetime conversion only works for certain time period
+        if num_months >= 12 and (2012 <= end_date.year <= 2112):
             ok = True
         if not ok:
             raise ValidationError(
-                message='The time period for data extraction must be >= 12 months',
+                message='The time period for data extraction must be >= 12 months, and year must be between 2012 and 2112',
                 cursor_position=len(document.text))  # Move cursor to end
 
 class ZipcodeValidator(Validator):
@@ -147,7 +163,10 @@ class ZipcodeValidator(Validator):
         """
         ok = False
         if document.text.isdigit() and len(document.text) == 5:
-            ok = zipcodes.is_real(document.text)
+        # Only take non-Hawaii and non-Alaska zipcodes
+            ok = zipcodes.is_real(document.text) and \
+                 (zipcodes.matching(document.text)[0]['state'] != 'HI') and \
+                 (zipcodes.matching(document.text)[0]['state'] != 'AK')
         if not ok:
             raise ValidationError(
                 message='Please enter a valid zipcode',
