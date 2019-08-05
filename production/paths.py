@@ -37,12 +37,12 @@ model_scaler_dir = os.path.join(model_dir, 'scaler')
 
 # Static file names
 data_delivery_prediction_preprocessed_dir_cmu = os.path.join(data_delivery_prediction_preprocessed_dir, 'delivery_prediction_data_preprocessed_cmu.pkl.z')
-data_delivery_prediction_features_dir_cmu = os.path.join(data_delivery_prediction_features_dir, 'feature_names_cmu.npz')
+# data_delivery_prediction_features_dir_cmu = os.path.join(data_delivery_prediction_features_dir, 'feature_names_cmu.npz')
 data_delivery_prediction_zip_to_msa_cmu = os.path.join(data_delivery_prediction_external_dir, 'zip_to_msa_numbers_cmu.csv')
 data_delivery_prediction_data_dict_dir_cmu = os.path.join(data_delivery_prediction_datadict_dir, 'datadict_cmu.npz')
 
-model_cmu = os.path.join(model_dir, 'model_cmu.pkl.z')
-scaler_cmu = os.path.join(model_scaler_dir, 'scaler_cmu.pkl.z')
+# model_cmu = os.path.join(model_dir, 'model_cmu.pkl.z')
+# scaler_cmu = os.path.join(model_scaler_dir, 'scaler_cmu.pkl.z')
 windows_cmu = os.path.join(data_delivery_prediction_windows_dir, 'windows_cmu.pkl')
 fedex_service_types_to_time_window = os.path.join(data_delivery_prediction_windows_dir, 'fedex_service_types_to_time_window.pkl')
 ups_service_types_to_time_window = os.path.join(data_delivery_prediction_windows_dir, 'ups_service_types_to_time_window.pkl')
