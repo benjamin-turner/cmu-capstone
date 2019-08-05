@@ -3,7 +3,9 @@ Static menu options and styles
 
 This script contains the static style attributes, user input validators and static menu options for the UI.
 Any questions contained in this module should be imported with prompt().
-Reference: https://github.com/tmbo/questionary
+
+References
+    Questionary: https://github.com/tmbo/questionary
 
 """
 from __future__ import print_function, unicode_literals
@@ -11,6 +13,7 @@ import datetime
 import zipcodes
 from prompt_toolkit.styles import Style
 from questionary import Separator, Validator, ValidationError
+from dateutil import relativedelta
 
 blue = Style([
     ('separator', 'fg:#6C6C6C'),
@@ -49,6 +52,9 @@ class DateValidator(Validator):
         Args:
             document: User input to questionary prompt
 
+        Raises:
+            ValidationError if date is not in valid format
+
         Returns:
             True if date is in valid format
         """
@@ -70,6 +76,9 @@ class YearMonthValidator(Validator):
         Args:
             document: User input to questionary prompt
 
+        Raises:
+            ValidationError if year and month is not in valid format
+
         Returns:
             True if date is in valid format
         """
@@ -81,6 +90,44 @@ class YearMonthValidator(Validator):
                 cursor_position=len(document.text))  # Move cursor to end
 
 
+class EndYearMonthValidator(Validator):
+    """Contains class method to validate end range of year and month
+
+    """
+
+    def validate(self, document):
+        """Validates year month strings
+
+        Args:
+            document: User input to questionary prompt
+
+        Raises:
+            ValidationError if year and month is not in valid format OR range between start month and end month
+                is less than 12 months.
+
+        Returns:
+            True if date is in valid format
+        """
+        ok = False
+        try:
+            # datetime.datetime.strptime(document.text, '%Y-%m')
+            import builtins
+            start_year_month = builtins.start_year_month
+            start_date = datetime.datetime.strptime(start_year_month + "-1", "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(document.text + "-1", "%Y-%m-%d").date()
+        except ValueError:
+            raise ValidationError(
+                message='Please enter a valid date in YYYY-MM-DD format',
+                cursor_position=len(document.text))  # Move cursor to end
+        delta = relativedelta.relativedelta(end_date, start_date)
+        num_months = delta.years * 12 + delta.months + 1
+        if num_months >= 12:
+            ok = True
+        if not ok:
+            raise ValidationError(
+                message='The time period for data extraction must be >= 12 months',
+                cursor_position=len(document.text))  # Move cursor to end
+
 class ZipcodeValidator(Validator):
     """Contains class method to validate zipcodes
 
@@ -91,9 +138,12 @@ class ZipcodeValidator(Validator):
         Args:
             document: User input to questionary prompt
 
+        References:
+            Zipcodes: https://pypi.org/project/zipcodes/
+
         Returns:
             True if user zipcode is valid number with len=5 and according to zipcodes package
-            Reference: https://pypi.org/project/zipcodes/
+
         """
         ok = False
         if document.text.isdigit() and len(document.text) == 5:
@@ -112,10 +162,13 @@ class NumberValidator(Validator):
         """Validates number
 
         Args:
-            document: User input to questionary prompt
+            document: User input to questionary prompt.
+
+        Raises:
+            ValidationError if number is not valid.
 
         Returns:
-            True if number is valid
+            True if number is valid.
         """
         try:
             float(document.text)
@@ -134,6 +187,9 @@ class WeightValidator(Validator):
 
         Args:
             document: User input to questionary prompt
+
+        Raises:
+            ValidationError if weight is not valid
 
         Returns:
             True if weight is a number and below 150 lbs. According to FedEx and UPS,
@@ -164,6 +220,9 @@ class FractionValidator(Validator):
         Args:
             document: User input to questionary prompt
 
+        Raises:
+            ValidationError if fraction is not valid
+
         Returns:
             True if fraction is valid.
         """
@@ -192,6 +251,9 @@ class PercentileValidator(Validator):
         Args:
             document: User input to questionary prompt
 
+        Raises:
+            ValidationError if percentile is not valid
+
         Returns:
             True if percentile is a number and between 0 and 100.
         """
@@ -219,6 +281,9 @@ class SIDValidator(Validator):
 
         Args:
             document: User input to questionary prompt
+
+        Raises:
+            ValidationError if business SID is not found.
 
         Returns:
             True if SID is found in columns of similarity matrix provided.

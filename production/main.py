@@ -269,11 +269,25 @@ def load_extract_menu():
     """Prompts user for input on data extraction and invokes extract.batch_query().
 
     """
-    extract_data_choice = prompt(menu_options.extract_data_questions, style=blue)
-    records = extract.batch_query(extract_data_choice['start_date'],
-                                  extract_data_choice['end_date'],
-                                  extract_data_choice['sample_size'])
-    extract.store(records, extract_data_choice['sample_size'])
+    start_year_month = questionary.text(
+        "What is the start year/month for data extraction? (Please enter in YYYY-MM format):",
+        validate=menu_options.YearMonthValidator,
+        default='2018-06',
+        style=blue).ask()
+    # Store start_year_month in builtins to validate for >=12 months
+    builtins.start_year_month = start_year_month
+    end_year_month = questionary.text(
+        "What is the cutoff year/month for data extraction? (Please enter in YYYY-MM format)\nPlease ensure that the time range is at least 12 months to account for seasonality:",
+        validate=menu_options.EndYearMonthValidator,
+        default='2019-05',
+        style=blue).ask()
+    sample_size = questionary.text(
+        "What is the fraction of data you wish to extract? (Please enter a fraction between 0 and 1):",
+        validate=menu_options.FractionValidator,
+        default='0.2',
+        style=blue).ask()
+    records = extract.batch_query(start_year_month, end_year_month, sample_size)
+    extract.store(records, sample_size)
     # Display menu
     while True:
         choice_after = questionary.select(
