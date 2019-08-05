@@ -22,7 +22,7 @@ import menu_options, paths
 from menu_options import blue
 import delivery_prediction_predict, delivery_prediction_preprocess, delivery_prediction_train
 import benchmarking, benchmarking_calc
-import extract
+import extract, utilities
 
 
 def load_main_menu():
@@ -62,24 +62,28 @@ def load_benchmarking_menu():
     similarity_matrices = []
     for idx, file_path in enumerate(glob.glob(paths.data_benchmarking_dir + "/*similarity*")):
         similarity_matrices.append(file_path)
-    KPI_databases = []
-    for idx, file_path in enumerate(glob.glob(paths.data_benchmarking_dir + "/*KPI*")):
-        KPI_databases.append(file_path)
     # Ask for user choice
     matrix_path = questionary.select(
         "Which similarity matrix to use?",
         choices=similarity_matrices,
         style=blue).ask()
-    KPI_database = questionary.select(
-        "Which KPI database to use?",
-        choices=KPI_databases,
-        style=blue).ask()
-    print("Loading saved matrix and KPI database...")
-    preloaded_matrix = joblib.load(matrix_path)
-    builtins.sid_list = preloaded_matrix.columns.values
-    preloaded_KPIs = joblib.load(KPI_database)
-    print("Matrix and KPI database loaded.")
-    get_kpi(preloaded_matrix, preloaded_KPIs)
+    model_id = matrix_path.split('_', )[-1].split('.', )[0]
+    kpi_database_path = os.path.join(paths.data_benchmarking_dir, "KPI_database_") + model_id + ".pkl.z"
+    kpi_database_exists = os.path.exists(kpi_database_path)
+    print("\nKPI Database file is automatically selected based on ID string after the last _")
+    print(f"ID found: {model_id}")
+    print(f"Looking for KPI database in {kpi_database_path}, File exists: {kpi_database_exists}")
+    if kpi_database_exists:
+        print("\nLoading similarity matrix and KPI database...")
+        preloaded_matrix = joblib.load(matrix_path)
+        builtins.sid_list = preloaded_matrix.columns.values
+        preloaded_KPIs = joblib.load(kpi_database_path)
+        print("Matrix and KPI database loaded.\n")
+        get_kpi(preloaded_matrix, preloaded_KPIs)
+    else:
+        print(f"Please make sure KPI database file is stored in the correct directory as {kpi_database_path}")
+        print("Returning to main menu...")
+        load_main_menu()
 
 
 def get_kpi(preloaded_matrix, preloaded_KPIs):
@@ -344,8 +348,9 @@ def calculate_matrix(extracted_data):
             metric_weights[weight] = metric_weights[weight] / metric_weights_sum
     print("\nWeights:", metric_weights, "\n")
     print("\nCreating similarity score matrix...")
-    benchmarking_calc.create_similarity_score_matrix(extract_data=extracted_data, input_weights=metric_weights)
-    benchmarking_calc.create_customer_KPI_database(arg_df=extracted_data)
+    model_id = utilities.get_timestamp()
+    benchmarking_calc.create_similarity_score_matrix(extract_data=extracted_data, input_weights=metric_weights, model_id=model_id)
+    benchmarking_calc.create_customer_KPI_database(arg_df=extracted_data, model_id=model_id)
     while True:
         choice_after = questionary.select(
             "---Calculate similarity matrix---",

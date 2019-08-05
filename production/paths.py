@@ -47,8 +47,8 @@ windows_cmu = os.path.join(data_delivery_prediction_windows_dir, 'windows_cmu.pk
 fedex_service_types_to_time_window = os.path.join(data_delivery_prediction_windows_dir, 'fedex_service_types_to_time_window.pkl')
 ups_service_types_to_time_window = os.path.join(data_delivery_prediction_windows_dir, 'ups_service_types_to_time_window.pkl')
 
-benchmarking_ss_matrix_cmu = os.path.join(data_benchmarking_dir, 'full_similarity_score_table.pkl')
-benchmarking_kpi_cmu = os.path.join(data_benchmarking_dir, 'full_KPI_database_v2.pkl')
+benchmarking_ss_matrix_cmu = os.path.join(data_benchmarking_dir, 'similarity_score_matrix_cmu.pkl.z')
+benchmarking_kpi_cmu = os.path.join(data_benchmarking_dir, 'KPI_database_cmu.pkl.z')
 
 extracted_data_sample_cmu = os.path.join(data_extracted_dir, 'extract_sample_cmu.pkl.z')
 batch_sample_cmu = os.path.join(data_delivery_prediction_input_dir, 'delivery_prediction_batch_sample_cmu.csv')

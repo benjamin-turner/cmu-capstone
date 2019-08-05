@@ -394,20 +394,20 @@ def calculate_similarity_score(sid_in_focus, params, weights = default_weights):
     ss_array = 100*(weights[0]*vsiList + weights[1]*wsiList + weights[2]*vpmiList + weights[3]*wpmiList + weights[4]*vpziList + weights[5]*wpziList)
     return np.round(ss_array,3)
 
-#Function for creating a filename
-def create_filename(artifact_type):
+
+def create_filename(artifact_type, model_id):
     '''
     Create filename given input string identifying file type
     
     Args:
         artifact_type (str): brief description of document being created, ie, "similarity_matrix" or "KPI_database"
-        
+        model_id (str): timestamp in YYYYMMDD-HHMM format when user creates matrix
+
     Returns:
         filename (str): filename with stipulated naming convention as follows:
             <artifact_type>_<timestamp in YYYYMMDD-HHMM format>.pkl.z
     '''
-    timestamp = utilities.get_timestamp()
-    output_path = os.path.join(paths.data_benchmarking_dir, artifact_type + "_" + timestamp + ".pkl.z")
+    output_path = os.path.join(paths.data_benchmarking_dir, artifact_type + "_" + model_id + ".pkl.z")
     return output_path
 ####################################################################################################################    
 #Create full similarity score matrix
@@ -433,13 +433,14 @@ ssmatrix = create_similarity_score_matrix(ref_sids)
 '''
 
 #for production
-def create_similarity_score_matrix(extract_data, input_weights):
+def create_similarity_score_matrix(extract_data, input_weights, model_id):
     '''
     Create similarity_score_matrix
     
     Args:
         extract_data (pandas dataframe object): raw dataframe from 71lbs database
-       input_weights (numpy array): user-provided weights
+        input_weights (numpy array): user-provided weights
+        model_id (str): timestamp in YYYYMMDD-HHMM format when user creates matrix
 
     Returns:
         True (bool): No specific output. However, function creates and stores the matrix in output_dir
@@ -457,7 +458,7 @@ def create_similarity_score_matrix(extract_data, input_weights):
             similarity_score_matrix.loc[x] = row_vals
 
     print(f"\nSaving similarity score matrix...")
-    filename = create_filename("similarity_score_matrix")
+    filename = create_filename("similarity_score_matrix", model_id)
     joblib.dump(similarity_score_matrix, filename)
     print(f"Similarity score matrix stored in {filename}")
     return True
@@ -587,7 +588,7 @@ def get_descriptors(arg_df):
 
 #Next, create the KPI database
 
-def create_customer_KPI_database(arg_df):
+def create_customer_KPI_database(arg_df, model_id):
     '''
     Function to create the dataframe to be imported into a database which would then be
     queried each time a similarity calculation is made.
@@ -645,6 +646,7 @@ def create_customer_KPI_database(arg_df):
             
         Args:
             args_df (pandas dataframe object): raw dataframe from 71lbs database
+            model_id (str): timestamp in YYYYMMDD-HHMM format when user creates matrix
             
         Returns:
             return_df (pandas dataframe object): dataframe containing all KPIs
@@ -1000,7 +1002,7 @@ def create_customer_KPI_database(arg_df):
              avg_disc_per_zone_shipper, 
              avg_disc_per_zone_per_lb_per_shipper], axis=1)
     
-    filename = create_filename("KPI_database")
+    filename = create_filename("KPI_database", model_id)
     print("Saving KPI database...")
     joblib.dump(return_df, filename)
     print(f"KPI database stored in {filename}\n")
