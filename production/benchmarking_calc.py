@@ -456,7 +456,8 @@ def create_similarity_score_matrix(extract_data, input_weights):
 
 #There are 2 steps here:
 #1. Add standard methods
-#2. Create KPI database
+#2. Create descriptors to be used for similar sids
+#3. Create KPI database
 
 #Add standard methods
 
@@ -524,7 +525,55 @@ def add_standard_methods(arg_df):
     
     complete_df = pd.concat([arg_df, df], axis = 1)
     return complete_df
+ 
     
+def get_descriptors(arg_df):
+    """
+    This function generates customer descriptors to be appended to final peer group outputs. The descriptors
+    are made availabel for the purpose of reviewing the rationale relationship customers would have with
+    one another. If customers serving the aerospace industry show up in the same peer group as customers
+    serving consumer products, some adjustments to the benchmarking weights may be warranted.
+    
+    Args:
+        dataframe of shipments containing the following columns at a minimum:
+        ['business_sid', 'industry', 'sub_industry', 'sender_state', 'recipient_state']
+    
+    Returns: 
+        dataframe of customers containing the following columns:
+        ['business_sid', 'industry', 'sub_industry', 'pri_ship_origin_state', 'pri_ship_dest_state'].
+        
+    The 'pri_ship_origin_state' is the primary state from where parcels are shipped
+    The 'pri_ship_dest_state' is the primary state to where parcels are shipped
+    """
+    
+    def get_descriptor(arg_df, col):
+        """
+        Helper function to aggregate a specific descriptor to the customer level
+        """
+        arg_df = pd.DataFrame(arg_df.groupby(['business_sid', col])[col].nunique())
+        arg_df.columns = ['count']
+        arg_df = arg_df.sort_values(by='count', ascending=False)
+        arg_df = arg_df.drop(columns='count')
+        arg_df = arg_df.reset_index(level=col)
+        arg_df = arg_df.loc[~arg_df.index.duplicated(keep='first')]
+
+        return arg_df
+
+    # preparing a unique list of business_sids to merge dataframes to
+    descriptors_df = pd.DataFrame(arg_df.business_sid.unique(), columns=['business_sid'])
+    descriptors_df = descriptors_df.set_index('business_sid')
+
+    # builds dataframe with customer descriptors
+    descriptors = ['industry', 'sub_industry', 'sender_state', 'recipient_state']
+    for descriptor in descriptors:
+        descriptor_df = get_descriptor(arg_df[['business_sid', descriptor]], descriptor)
+        descriptors_df = pd.merge(descriptors_df, descriptor_df, how='outer', on='business_sid')
+
+    # relabels columns
+    descriptors_df.columns = ['industry', 'sub_industry', 'pri_ship_origin_state', 'pri_ship_dest_state']
+    return descriptors_df
+
+
 #Next, create the KPI database
 
 def create_customer_KPI_database(arg_df):
@@ -906,6 +955,8 @@ def create_customer_KPI_database(arg_df):
     
     avg_disc_per_zone_per_lb_per_shipper.columns = per_zone_per_lb_per_shipper_disc_cols
     ################################################################
+    #Also add descriptors to this table. This will be used for collectiing data on similar SIDs
+    descriptor_df = get_descriptors(arg_df)
     # Concatenate all dataframes into final product
     return_df = pd.concat(
             [avg_tot_spend,
@@ -932,6 +983,7 @@ def create_customer_KPI_database(arg_df):
              volume_count_method_pt,
              volume_count_method_shipper_pt,
              proportion_per_shipper,
+             descriptor_df,
              avg_disc_per_zone_pt,
              avg_disc_per_zone_per_lb_df,
              avg_disc_per_zone_shipper, 
