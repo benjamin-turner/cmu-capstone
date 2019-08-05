@@ -1,3 +1,16 @@
+"""
+Benchmarking Script
+
+This is the key script that generates:
+    1. Terminal output 
+    2. Excel files for offline review
+    
+This file should be imported as a module and contains the following function used in main.py:
+    
+    * get_selected_metrics - get all selected metrics requested by user
+    
+"""
+
 import time
 import numpy as np
 import pandas as pd
@@ -8,9 +21,23 @@ import os
 import fnmatch
 import joblib
 
-
+'''
+Store the current directory in a variable
+'''
+orig_dir = os.getcwd()
 # Retrieve raw scores from the full SS matrix
-def get_raw_scores(sid, preloaded_matrix, preloaded_KPIs):
+def get_raw_scores(sid, preloaded_matrix):
+    '''
+    Get raw similarity scores from the preloaded similarity matrix 
+    
+    Args:
+        sid (str): sid for which raw scores are needed
+        preloaded_matrix (pandas dataframe object): Raw similarity score matrix
+    
+    Returns:
+        clean_scores (numpy array): Cleaned scores after removing nans and negative values
+        
+    '''
     full_ss_matrix_optimized = np.array(preloaded_matrix)
     full_matrix_indices = np.array(preloaded_matrix.index.values)
     # Retrieve the index at which the requested sid is present in the SS matrix
@@ -33,23 +60,49 @@ def get_raw_scores(sid, preloaded_matrix, preloaded_KPIs):
 # For a given sid and percentile, this function returns the threshold similarity score value.
 # All sids with a similarity score higher than the threshold value will be deemed 'similar customers'
 # at the given percentile(default 90th %ile) level
-def ss_threshold(sid, percentile, preloaded_matrix, preloaded_KPIs ):
-    threshold_score = (np.percentile(get_raw_scores(sid, preloaded_matrix, preloaded_KPIs), percentile))
-    # print(normalized_threshold_score)
+def ss_threshold(sid, percentile, preloaded_matrix):
+    '''
+    Get threshold score based on user-selected percentile
+    
+    Args:
+        sid (str): sid for which threshold score is needed
+        percentile (int): percentile value between 0-100 provided by the user
+        preloaded_matrix (pandas dataframe object): Raw similarity score matrix
+    
+    Returns:
+        threshold_score (float): Threshold score for selected sid at given percentile
+        
+    '''
+    threshold_score = (np.percentile(get_raw_scores(sid, preloaded_matrix), percentile))
+    # print(threshold_score)
     return np.round(threshold_score, 3)
 
 # This directly returns a list of ALL similar customers that are above a certain percentile threshold(default 90th %ile)
-def get_similar_customers(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
+def get_similar_customers(input_sid, percentile, user, preloaded_matrix):
+    '''
+    Get similar customers and their similarity scores based on input sid and percentile
+    
+    Args:
+        input_sid (str): sid for which similar customers are needed
+        percentile (int): Value between 0-100 provided by user
+        user (int): if 1, print top 10 most similar sids ranked by similarity scoree
+        preloaded_matrix (pandas dataframe object): Raw similarity score matrix
+    
+    Returns:
+        sorted_sids (numpy array): Array containing sids sorted in descending order
+        df (pandas dataframe object): Dataframe containing both sids and corresponding similarity score
+        
+    '''
     full_ss_matrix_optimized = np.array(preloaded_matrix)
     full_matrix_indices = np.array(preloaded_matrix.index.values)
     
     inp_sid = input_sid
     # Get threshold score for requested sid
-    threshold_score = ss_threshold(inp_sid, percentile, preloaded_matrix, preloaded_KPIs)
+    threshold_score = ss_threshold(inp_sid, percentile, preloaded_matrix)
     # Get index of requested sid in the full_ss_matrix
     sid_idx = np.where(full_matrix_indices == inp_sid)[0][0]
     # Get raw scores for the test_sid from the full_ss_matrix
-    sid_scores = get_raw_scores(full_matrix_indices[sid_idx], preloaded_matrix, preloaded_KPIs)
+    sid_scores = get_raw_scores(full_matrix_indices[sid_idx], preloaded_matrix)
     # First get all scores that are higher than the threshold score
     similar_scores = full_ss_matrix_optimized[sid_idx][np.where(sid_scores >= threshold_score)[0]]
     # Then get a list of sids that have scores higher than the threshold score
@@ -72,48 +125,39 @@ def get_similar_customers(input_sid, percentile, user, preloaded_matrix, preload
 #############################################################################################################
 #Begin KPI Calculation
 
-#Extract preloaded_matrix and KPIs
-#code below iss for testing
-    '''
-os.getcwd()
-os.chdir(orig_dir)
-orig_dir = 'C:\\Users\\Shivalik\\Documents\\GitHub\\cmu-capstone\\cmu-capstone\\production'
-preloaded_data_dir = os.path.join(orig_dir, paths.data_benchmarking_dir) 
-os.chdir(preloaded_data_dir)
-
-ss_matrices = []
-for file in os.listdir():
-    if fnmatch.fnmatch(file, 'similarity_score_matrix*'):
-        ##print(file)
-        ss_matrices.append(file)
-latest_ss_matrix = max(ss_matrices, key = os.path.getctime) 
-with open(latest_ss_matrix, 'rb') as f:
-    preloaded_matrix = joblib.load(f)
-preloaded_matrix.head() 
-
-kpi_tables = []
-for file in os.listdir():
-    if fnmatch.fnmatch(file, 'KPI_database*'):
-        ##print(file)
-        kpi_tables.append(file)
-latest_KPIs = max(kpi_tables, key = os.path.getctime) 
-with open(latest_KPIs, 'rb') as f:
-    preloaded_KPIs = joblib.load(f)       
-preloaded_KPIs.head()
-for i,j in enumerate(preloaded_KPIs.columns):
-    print(i,":", j)
-    '''
-##############################################################################
+#code below is for testing
 #input_sid = '7B8E9E45F5'
 #percentile = 90
 #user = 1
 #df.head()
+############################################################################################################
+
 # Average Spend KPI (Option 1)
 def KPI_avg_spend(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
+    '''
+    Get all KPIs related to average spend
+    Average total spend:
+            a. Average total spend
+            b. Average total spend per shipper
+            c. Average total spend per lb 
+            d. Average total spend per lb per shipper
+    
+    Args:
+        input_sid (str): sid for which similar customers are needed
+        percentile (int): Value between 0-100 provided by user
+        user (int): if 1, print top 10 most similar sids ranked by similarity scoree
+        preloaded_matrix (pandas dataframe object): Raw similarity score matrix
+        preloaded_KPIs (pandas dataframe object): KPI database
+    
+    Returns:
+        df (pandas dataframe object): Dataframe containing avg_spend KPIs
+        
+    '''
+    
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
     avg_spend_df = np.round(preloaded_KPIs.iloc[:, 0:6], 2)
      
-    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs)[0]
+    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix)[0]
     similar_customers_idx = np.isin(full_KPI_indices, similar_customer_list)
 
     self_avg_spend = np.array(np.round(avg_spend_df.loc[input_sid], 2))
@@ -143,10 +187,29 @@ def KPI_avg_spend(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs)
 
 # Average Spend per Shipping Method KPI (Option 2)
 def KPI_avg_spend_per_method(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
+    '''
+    Get all KPIs related to average spend per shipping method
+    Average spend per shipping method:
+            a. Average spend per method
+            b. Average spend per method per lb
+            c. Average spend per method per shipper
+            d. Average spend per method per lb per shipper
+    
+    Args:
+        input_sid (str): sid for which similar customers are needed
+        percentile (int): Value between 0-100 provided by user
+        user (int): if 1, print top 10 most similar sids ranked by similarity scoree
+        preloaded_matrix (pandas dataframe object): Raw similarity score matrix
+        preloaded_KPIs (pandas dataframe object): KPI database
+    
+    Returns:
+        df (pandas dataframe object): Dataframe containing relevant KPIs
+        
+    '''
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
     spend_per_method_df = np.round(preloaded_KPIs.iloc[:, 6:44], 2)
 
-    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs)[0]
+    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix)[0]
     similar_customers_idx = np.isin(full_KPI_indices, similar_customer_list)
 
     self_spend_per_method = np.array(np.round(spend_per_method_df.loc[input_sid], 2))
@@ -177,10 +240,28 @@ def KPI_avg_spend_per_method(input_sid, percentile, user, preloaded_matrix, prel
 
 # Average Spend per Month KPI (Option 3)
 def KPI_spend_per_month(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
+    '''
+    Get all KPIs related to average spend per month
+    Average spend per month:
+            a. Average spend per month
+            b. Average spend per month per lb
+            c. Average spend per month per shipper
+            d. Average spend per month per lb per shipper
+    Args:
+        input_sid (str): sid for which similar customers are needed
+        percentile (int): Value between 0-100 provided by user
+        user (int): if 1, print top 10 most similar sids ranked by similarity scoree
+        preloaded_matrix (pandas dataframe object): Raw similarity score matrix
+        preloaded_KPIs (pandas dataframe object): KPI database
+    
+    Returns:
+        df (pandas dataframe object): Dataframe containing relevant KPIs
+        
+    '''
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
     spend_per_month_df = np.round(preloaded_KPIs.iloc[:, 44:116], 2)
     
-    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs)[0]
+    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix)[0]
     similar_customers_idx = np.isin(full_KPI_indices, similar_customer_list)
     
     self_spend_per_month = np.array(np.round(spend_per_month_df.loc[input_sid], 2))
@@ -210,10 +291,29 @@ def KPI_spend_per_month(input_sid, percentile, user, preloaded_matrix, preloaded
 
 # Average Discount KPI (Option 4)
 def KPI_avg_discount(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
+    '''
+    Get all KPIs related to average discount
+    Average total discounts:
+            a. Average total discount
+            b. Average total discount per shipper
+            c. Average total discount per lb 
+            d. Average total discount per lb per shipper
+    
+    Args:
+        input_sid (str): sid for which similar customers are needed
+        percentile (int): Value between 0-100 provided by user
+        user (int): if 1, print top 10 most similar sids ranked by similarity scoree
+        preloaded_matrix (pandas dataframe object): Raw similarity score matrix
+        preloaded_KPIs (pandas dataframe object): KPI database
+    
+    Returns:
+        df (pandas dataframe object): Dataframe containing relevant KPIs
+        
+    '''
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
     avg_discount_df = np.round(preloaded_KPIs.iloc[:,116:122], 2)
 
-    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs)[0]
+    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix)[0]
     similar_customers_idx = np.isin(full_KPI_indices, similar_customer_list)
 
     self_avg_discount = np.array(np.round(avg_discount_df.loc[input_sid], 2))
@@ -242,10 +342,29 @@ def KPI_avg_discount(input_sid, percentile, user, preloaded_matrix, preloaded_KP
 
 # Average Discount per Shipping Method KPI (Option 5)
 def KPI_avg_discount_per_method(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
+    '''
+    Get all KPIs related to average discount per shipping method
+    Average discount per shipping method:
+            a. Average discount per method
+            b. Average discount per method per lb
+            c. Average discount per method per shipper
+            d. Average discount per method per lb per shipper
+    
+    Args:
+        input_sid (str): sid for which similar customers are needed
+        percentile (int): Value between 0-100 provided by user
+        user (int): if 1, print top 10 most similar sids ranked by similarity scoree
+        preloaded_matrix (pandas dataframe object): Raw similarity score matrix
+        preloaded_KPIs (pandas dataframe object): KPI database
+    
+    Returns:
+        df (pandas dataframe object): Dataframe containing relevant KPIs
+        
+    '''
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
     discount_per_method_df = np.round(preloaded_KPIs.iloc[:, 122:160], 2)
 
-    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs)[0]
+    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix)[0]
     similar_customers_idx = np.isin(full_KPI_indices, similar_customer_list)
 
     self_discount_per_method = np.array(np.round(discount_per_method_df.loc[input_sid], 2))
@@ -275,10 +394,29 @@ def KPI_avg_discount_per_method(input_sid, percentile, user, preloaded_matrix, p
 
 # Discounts per Zone KPI (Option 6)
 def KPI_discount_per_zone(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
+    '''
+    Get all KPIs related to average discount per zone
+    Average discounts per zone
+            a. Average discount per zone
+            b. Average discount per zone per lb
+            c. Average discount per zone per shipper
+            d. Average discount per zone per lb per shipper 
+    
+    Args:
+        input_sid (str): sid for which similar customers are needed
+        percentile (int): Value between 0-100 provided by user
+        user (int): if 1, print top 10 most similar sids ranked by similarity scoree
+        preloaded_matrix (pandas dataframe object): Raw similarity score matrix
+        preloaded_KPIs (pandas dataframe object): KPI database
+    
+    Returns:
+        df (pandas dataframe object): Dataframe containing relevant KPIs
+        
+    '''
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
-    discount_per_zone_df = np.round(preloaded_KPIs.iloc[:, 188:], 2)
+    discount_per_zone_df = np.round(preloaded_KPIs.iloc[:, 192:], 2)
 
-    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs)[0]
+    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix)[0]
     similar_customers_idx = np.isin(full_KPI_indices, similar_customer_list)
 
     self_discount_per_zone = np.array(np.round(discount_per_zone_df.loc[input_sid], 2))
@@ -310,10 +448,26 @@ def KPI_discount_per_zone(input_sid, percentile, user, preloaded_matrix, preload
 
 # Shipping Method Proportion KPI (Option 7)
 def KPI_methodwise_proportion(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
+    '''
+    Get all KPIs related to methodwise proportion
+    Proportion of shipping methods used
+            a. Average volume proportion per method
+    
+    Args:
+        input_sid (str): sid for which similar customers are needed
+        percentile (int): Value between 0-100 provided by user
+        user (int): if 1, print top 10 most similar sids ranked by similarity scoree
+        preloaded_matrix (pandas dataframe object): Raw similarity score matrix
+        preloaded_KPIs (pandas dataframe object): KPI database
+    
+    Returns:
+        df (pandas dataframe object): Dataframe containing relevant KPIs
+        
+    '''
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
     methodwise_proportion_df = np.round(preloaded_KPIs.iloc[:, 160:167], 2)
 
-    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs)[0]
+    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix)[0]
     similar_customers_idx = np.isin(full_KPI_indices, similar_customer_list)
 
     self_prop_per_method = np.array(np.round(methodwise_proportion_df.loc[input_sid], 2)) * 100
@@ -345,11 +499,27 @@ def KPI_methodwise_proportion(input_sid, percentile, user, preloaded_matrix, pre
 
 # Shipper Proportion KPI (Option 8)
 def KPI_shipper_proportion(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
+    '''
+    Get all KPIs related to average shipper proportion
+    Proportion of each carrier used
+            a. Proportional carrier use(%FedEx, %UPS)
+    
+    Args:
+        input_sid (str): sid for which similar customers are needed
+        percentile (int): Value between 0-100 provided by user
+        user (int): if 1, print top 10 most similar sids ranked by similarity scoree
+        preloaded_matrix (pandas dataframe object): Raw similarity score matrix
+        preloaded_KPIs (pandas dataframe object): KPI database
+    
+    Returns:
+        df (pandas dataframe object): Dataframe containing relevant KPIs
+        
+    '''
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
     fedex_prop_list = np.array(np.round(preloaded_KPIs['proportion_fedex'], 2))
     ups_prop_list = np.array(np.round(preloaded_KPIs['proportion_ups'], 2))
 
-    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs)[0]
+    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix)[0]
     similar_customers_idx = np.isin(full_KPI_indices, similar_customer_list)
 
     self_fedex_proportion = np.round(preloaded_KPIs.loc[input_sid][186], 2) * 100
@@ -382,10 +552,27 @@ def KPI_shipper_proportion(input_sid, percentile, user, preloaded_matrix, preloa
 
 # Volume per method KPI (Option 9)
 def KPI_volume_per_method(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs):
+    '''
+    Get all KPIs related to average volume per method
+    Total volume shipper per shipping method
+            a. Average volume per method
+            b. Average volume per method per shipper
+    
+    Args:
+        input_sid (str): sid for which similar customers are needed
+        percentile (int): Value between 0-100 provided by user
+        user (int): if 1, print top 10 most similar sids ranked by similarity scoree
+        preloaded_matrix (pandas dataframe object): Raw similarity score matrix
+        preloaded_KPIs (pandas dataframe object): KPI database
+    
+    Returns:
+        df (pandas dataframe object): Dataframe containing relevant KPIs
+        
+    '''
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
     volume_per_method_df = np.round(preloaded_KPIs.iloc[:, 167:186], 2)
 
-    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs)[0]
+    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix)[0]
     similar_customers_idx = np.isin(full_KPI_indices, similar_customer_list)
 
     self_volume_per_method = np.array(np.round(volume_per_method_df.loc[input_sid], 2))
@@ -428,7 +615,48 @@ metric_to_function = {
     metrics[8]: KPI_volume_per_method,
 }
 
+def get_descriptors_for_similar_sids(input_sid, percentile, user, preloaded_matrix,preloaded_KPIs):
+    '''
+    Get descriptors for similar sids, such as industry and most common sender/recipient state
+    
+    Args:
+        input_sid (str): sid for which similar customers are needed
+        percentile (int): Value between 0-100 provided by user
+        user (int): if 1, print top 10 most similar sids ranked by similarity scoree
+        preloaded_matrix (pandas dataframe object): Raw similarity score matrix
+        preloaded_KPIs (pandas dataframe object): KPI database
+    
+    Returns:
+        df (pandas dataframe object): Dataframe containing relevant descriptors
+        
+    '''
+    full_KPI_indices = np.array(preloaded_KPIs.index.values)
+    descriptors_df = np.round(preloaded_KPIs.iloc[:, 188:192], 2)
+
+    similar_customer_list = get_similar_customers(input_sid, percentile, user, preloaded_matrix=preloaded_matrix)[0]
+    similar_customers_idx = np.isin(full_KPI_indices, similar_customer_list)
+
+    peer_descriptors = descriptors_df.iloc[similar_customers_idx]
+    
+    return peer_descriptors
+
 def get_selected_metrics(selected_metrics, sid, percentile, preloaded_matrix, preloaded_KPIs):
+    '''
+    Get all selected metrics requested by user
+    This function also stores all KPIs(even if not requested) and similar sids to an excel file per execution
+    
+    Args:
+        selected_metrics (list): list of metrics selected by user
+        sid (str): sid for which similar customers are needed
+        percentile (int): Value between 0-100 provided by user
+        user (int): if 1, print top 10 most similar sids ranked by similarity scoree
+        preloaded_matrix (pandas dataframe object): Raw similarity score matrix
+        preloaded_KPIs (pandas dataframe object): KPI database
+    
+    Returns:
+        True (bool): Dummy response. All terminal output and file generation is handled within the function
+        
+    '''
     # if "Number of peers" in selected_metrics:
     #     KPI1 = get_similar_customers(sid, percentile, user=1)
     dispatch_list = []
@@ -443,27 +671,31 @@ def get_selected_metrics(selected_metrics, sid, percentile, preloaded_matrix, pr
     excel_list = []
     
     for metric in menu_options.benchmarking_metric_options:
-        excel_list.append(metric_to_function[metric](sid, percentile, user=1,
+        excel_list.append(metric_to_function[metric](sid, percentile, user=0,
                                                             preloaded_matrix=preloaded_matrix,
                                                             preloaded_KPIs=preloaded_KPIs))
-        allKPIs = pd.concat(excel_list)
+    allKPIs = pd.concat(excel_list)
 
 
     # Get a list of similar sids and respective similarity scores
-    similarity_data = get_similar_customers(sid, percentile, preloaded_matrix=preloaded_matrix, 
-                                            preloaded_KPIs=preloaded_KPIs, user = 0)[1]
-    # print(allKPIs)
-    #os.getcwd()
+    similarity_data = get_similar_customers(sid, percentile, preloaded_matrix=preloaded_matrix,user = 0)[1]
+    similarity_data = similarity_data.set_index('Similar_SIDs')
+    
+    user = 0
+    descriptors = get_descriptors_for_similar_sids(sid, percentile,user, preloaded_matrix=preloaded_matrix)
+
+    merged_df = pd.merge(similarity_data, descriptors, how = 'inner', left_index = True, right_index = True)
+
     # filename convention: benchmark_<SID>_<PERCENTILE>_<YYYYMMDD-HHMM>
-    orig_dir = 'C:\\Users\\Shivalik\\Documents\\GitHub\\cmu-capstone\\cmu-capstone\\production'
+    #orig_dir = 'C:\\Users\\Shivalik\\Documents\\GitHub\\cmu-capstone\\cmu-capstone\\production'
     output_path = os.path.join(orig_dir, paths.output_benchmarking_dir)
     timestr = time.strftime("%Y%m%d-%H%M")
     # print(output_path)
     file_name = output_path + '\Benchmarking_' + str(sid) + '_' + str(
         percentile) + '_' + timestr + '.xlsx'
     # print(file_name)
-
+    os.getcwd()
     with pd.ExcelWriter(file_name) as writer:
         allKPIs.to_excel(writer, sheet_name='KPIs')
-        similarity_data.to_excel(writer, sheet_name='Reference_Data')
+        merged_df.to_excel(writer, sheet_name='Reference_Data')
     return True

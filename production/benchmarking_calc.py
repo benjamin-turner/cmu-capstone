@@ -1,3 +1,18 @@
+"""
+Benchmarking Preprocessing Calculations Script
+
+This script contains the functions to preprocess data in the format needed for
+creating a Similarity Score matrix and KPI Database
+
+Essentially, this script generates both the similarity and dissimilarity metrics for a given set of sids
+
+This file should be imported as a module and contains the following functions that are used in main.py:
+    
+    * create_similarity_score_matrix - preprocess data, generate similarity scores and corresponding matrix
+    * create_customer_KPI_database - preprocess data and calculate relevant KPIs 
+
+"""
+
 import os
 import joblib
 import numpy as np
