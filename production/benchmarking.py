@@ -513,7 +513,7 @@ def KPI_shipper_proportion(input_sid, percentile, user, preloaded_matrix, preloa
         
     '''
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
-    print(preloaded_KPIs)
+    #print(preloaded_KPIs)
     fedex_prop_list = np.array(np.round(preloaded_KPIs['proportion_fedex'], 2))
     ups_prop_list = np.array(np.round(preloaded_KPIs['proportion_ups'], 2))
 
@@ -680,7 +680,7 @@ def get_selected_metrics(selected_metrics, sid, percentile, preloaded_matrix, pr
     similarity_data = similarity_data.set_index('Similar_SIDs')
     
     user = 0
-    descriptors = get_descriptors_for_similar_sids(sid, percentile,user, preloaded_matrix=preloaded_matrix)
+    descriptors = get_descriptors_for_similar_sids(sid, percentile,user, preloaded_matrix=preloaded_matrix,preloaded_KPIs=preloaded_KPIs)
 
     merged_df = pd.merge(similarity_data, descriptors, how = 'inner', left_index = True, right_index = True)
 
