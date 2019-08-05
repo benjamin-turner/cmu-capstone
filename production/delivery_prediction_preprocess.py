@@ -1,36 +1,72 @@
+"""
+Delivery Prediction Preprocessing Script
+
+This script contains the functions to preprocess data before training a model.
+Preprocessing involves removing unnecessary rows and columns, adding features based on
+sender and recipient zipcodes, shipment dates, adding time windows as target variable Y,
+splitting into training and test features and labels, and scaling continuous features e.g. weight.
+
+Feature names and preprocessed data are saved as dictionaries feature_names_<model_id>_.npz
+and datadict_<model_id>.npz respectively. Scaler is stored as a pkl object with .z compression in
+scaler_<model_id>_.pkl.z. Model_id is the YYYYMMDD-HHMM timestamp created when
+preprocessing is initialized.
+
+This file should be imported as a module and contains the following
+function that is used in main.py:
+    * preprocess - combines all functions in this module to preprocess a dataframe.
+
+"""
 import os
 import time
 from datetime import timedelta
 import numpy as np
 import pandas as pd
-import pgeocode
 from pandas.tseries.holiday import USFederalHolidayCalendar
 from tqdm import tqdm
 from uszipcode import SearchEngine
+import pgeocode
 import joblib
 from sklearn.model_selection import train_test_split
 from sklearn import preprocessing
-
 import paths, utilities
-
-def load_extracted_data(filepath):
-    df = joblib.load(filepath)
-    return df
 
 
 def set_model_id():
+    """Gets timestamp as model_id to be used globally in this module.
+
+    Returns:
+        str: Current timestamp in YYYY-MM-DD format.
+
+    """
     global model_id
     model_id = utilities.get_timestamp()
     return model_id
 
 
 def report_df_stats(df):
+    """Helper method to report on number of rows and columns in dataframe for tracking.
+
+    Args:
+        df (pandas dataframe obj): Pandas dataframe
+
+    Returns:
+        str: Number of rows and columns in dataframe.
+
+    """
     rows = len(df)
     col = len(df.columns)
     return f"{rows} rows, {col} columns"
 
 
 def remove_rows(df):
+    """Removes unnecessary rows from dataframe.
+
+    Args:
+        df (pandas dataframe obj): Pandas dataframe
+
+    Returns:
+        pandas dataframe obj: Pandas dataframe with rows removed.
+    """
     print("Removing unnecessary rows...")
     print(f"Starting with {report_df_stats(df)}")
     start_time = time.time()
@@ -63,8 +99,20 @@ def remove_rows(df):
     return df
 
 
-def add_MSA_features_rc(df):
-    df = df.reset_index()
+def add_MSA_features(df):
+    """Adds MSA features for sender and recipient zipcodes to dataframe.
+
+    sender_in_msa (bool): Whether sender zipcode is in a Metroplitan Statistical Area.
+    rec_in_msa (bool): Whether recipient zipcode is in a Metroplitan Statistical Area.
+    same_msa (bool): Whether sender zipcode and recipient have the same Metroplitan Statistical Area code.
+
+    Args:
+        df (pandas dataframe obj): Pandas dataframe that must contain sender_zip and recipient_zip columns
+
+    Returns:
+        pandas dataframe obj: Pandas dataframe with new columns same_msa, rec_in_msa, same_msa.
+    """
+    df = df.reset_index(drop=True)
     print("Adding MSA details...")
     zipcode_to_msa_df = pd.read_csv(paths.data_delivery_prediction_zip_to_msa_cmu, dtype=object)
     # If MSA Name contains 'MSA', zipcode is in a MSA i.e. bool=True
@@ -91,16 +139,16 @@ def add_MSA_features_rc(df):
     return df
 
 def get_distance(zipcode1, zipcode2):
-    """
-    Gets geodesic distance between 2 given zipcodes
-    https://pgeocode.readthedocs.io/en/latest/overview.html
+    """Gets geodesic distance between 2 given zipcodes
+
+    Reference: https://pgeocode.readthedocs.io/en/latest/overview.html
 
     Args:
-            zipcode1 (str): sender 5-digit zipcode
-            zipcode2 (str): recipient 5-digit zipcode
+        zipcode1 (str): sender 5-digit zipcode
+        zipcode2 (str): recipient 5-digit zipcode
 
     Returns:
-            float: distance between zipcodes in miles
+        float: distance between zipcodes in miles
     """
     dist = pgeocode.GeoDistance('us')
     distance = dist.query_postal_code(zipcode1, zipcode2)
@@ -111,20 +159,18 @@ def get_distance(zipcode1, zipcode2):
 
 
 def get_zip_details(zipcode1, search):
-    """
-    Get population, population density, no. housing units
-    and state for given zipcode
-    https://pgeocode.readthedocs.io/en/latest/overview.html
+    """Get population, population density, no. housing units and state for given zipcode.
+
+    Reference: https://pgeocode.readthedocs.io/en/latest/overview.html
 
     Args:
-            zipcode1 (str): target 5-digit zipcode
-            search (obj): uszipcode search object
+        zipcode1 (str): target 5-digit zipcode
+        search (obj): uszipcode search object
 
     Returns:
-            pop (int): population
-            pop_density (int): population density
-            housing_units (int): number of housing units
-            state (str): 2-letter US state code
+        pop (int): population
+        pop_density (int): population density
+        housing_units (int): number of housing units
     """
 
     zipcode = search.by_zipcode(zipcode1)
@@ -137,6 +183,15 @@ def get_zip_details(zipcode1, search):
 
 
 def add_zip_details(df):
+    """Adds zip details retrieved with get_zip_details() to Dataframe
+
+    Args:
+        df (pandas dataframe obj): Pandas dataframe that must contain sender_zip and recipient_zip columns
+
+    Returns:
+        pandas dataframe obj: Pandas dataframe with new columns sender_pop, sender_pop_density, sender_houses,
+            recipient_pop, recipient_pop_density, recipient_houses
+    """
     print(f"Adding zipcode details, {len(df)} iterations expected...")
     search = SearchEngine()
     pop_list_s, pop_density_list_s, houses_list_s = [], [], []
@@ -154,17 +209,19 @@ def add_zip_details(df):
     df['recipient_pop'], df['recipient_pop_density'], df['recipient_houses'] = pop_list_r, pop_density_list_r, houses_list_r
     return df
 
-# def add_recipient_zip_details(df):
-#     search = SearchEngine()
-#     # Unfortunately, get_zip_details cannot be vectorized. We have to use slower .apply
-#     # Progress bar reference: https://github.com/tqdm/tqdm/blob/master/examples/pandas_progress_apply.py
-#     # As at Aug 3 2019, tqdm.pandas will not work with pandas version >=0.25
-#     tqdm.pandas(desc="Adding zip details to recipient zipcodes")
-#     df['recipient_pop'], df['recipient_pop_density'], df['recipient_houses'] = \
-#         zip(*df.apply(lambda x: get_zip_details(x['recipient_zip'], search), axis=1))
-#     return df
 
 def add_features(df):
+    """Combines other functions to add features to dataframe.
+
+    Args:
+        df (pandas dataframe obj): Pandas dataframe that must contain sender_zip, recipient_zip,
+            shipment_date, weight, package_count columns.
+
+    Returns:
+        pandas dataframe obj: Pandas dataframe with new columns sender_pop, sender_pop_density, sender_houses,
+            recipient_pop, recipient_pop_density, recipient_houses, week_number, day_of_week, month, std_weight,
+            distance, sender_in_msa, rec_in_msa, same_msa.
+    """
     print("Adding features...")
     print(f"Starting with {report_df_stats(df)}")
     start_time = time.time()
@@ -179,7 +236,7 @@ def add_features(df):
     print("Adding distance...")
     df['distance'] = get_distance(df['sender_zip'].values, df['recipient_zip'].values)
     # Add sender_in_MSA, rec_in_MSA, same_MSA bools
-    df = add_MSA_features_rc(df)
+    df = add_MSA_features(df)
     # Add population, population density, no. housing units
     add_zip_details(df)
     print(f"Ending with {report_df_stats(df)}.")
@@ -188,6 +245,21 @@ def add_features(df):
 
 
 def add_time_windows(df):
+    """Adds time windows as target variable, based on delivery date and time.
+
+    Calculates number of business days (excl weekends, shipment date, federal holidays) for delivery.
+    Adds delivery time to number of business days to get time-in-transit.
+    Creates window thresholds based on discussion with Jose.
+    Lastly assign time windows to shipments based on time-in-transit.
+
+    Args:
+        df (pandas dataframe obj): Pandas dataframe that must contain shipment_date, delivery_date, delivery_time.
+
+    Returns:
+        pandas dataframe obj: Pandas dataframe with new columns days_in_transit, days_taken_float (time-in-transit),
+            Y (target variable i.e. time window)
+
+    """
     print("Adding time windows i.e. target variable...")
     print(f"Starting with {report_df_stats(df)}")
     start_time = time.time()
@@ -221,6 +293,24 @@ def add_time_windows(df):
 
 
 def create_time_window_thresholds():
+    """Create 12 time window thresholds according to percentage of days.
+    
+    Window 0: 0D,
+    Window 1: 1D 00:00 - 07:59,
+    Window 2: 1D 08:00 - 10:29,
+    Window 3: 1D 10:30 - 14:59, 
+    Window 4: 1D 15:00 - 23:59,
+    Window 5: 2D 00:00 - 10:29,
+    Window 6: 2D 10:30 - 16:29,
+    Window 7: 2D 16:30 - 23:59,
+    Window 8: 3D 00:00 - 16:29,
+    Window 9: 3D 16:30 - 23:59,
+    Window 10: 4D 00:00 - 23:59,
+    Window 11: 5D 00:00 - 23:59
+ 
+    Returns:
+        List of time window thresholds according to percentage of days.
+    """
     # Create time windows
     percentage_of_day_list = []
     # 8.00am
@@ -250,6 +340,15 @@ def create_time_window_thresholds():
 
 
 def assign_time_window(time_in_transit, time_window_thresholds):
+    """Helper function to assign time windows based on time in transit.
+    
+    Args:
+        time_in_transit: Number of business days + delivery time in decimals
+        time_window_thresholds: List of time window thresholds according to percentage of days.
+
+    Returns:
+        int: Time window number that time_in_transit belongs to.
+    """
     # If 0 business days, assign to window 0
     if time_in_transit <= 0: return 0
     # If >0 business days, assign to respective time window
@@ -260,6 +359,18 @@ def assign_time_window(time_in_transit, time_window_thresholds):
 
 
 def remove_columns(df):
+    """Removes columns not needed for prediction.
+    
+    Args:
+        df (pandas dataframe obj): Pandas dataframe 
+
+    Returns:
+        pandas dataframe obj: Pandas dataframe with only shipper, std_weight, zone, 
+            sender_state, recipient_state, distance, sender_pop, sender_pop_density, sender_houses,
+            recipient_pop, recipient_pop_density, recipient_houses, same_msa,
+            sender_in_msa, rec_in_msa, week_number, day_of_week, month, Y columns
+            
+    """
     print("Removing unnecessary columns...")
     print(f"Starting with {report_df_stats(df)}\nRemoving columns...")
     start_time = time.time()
@@ -278,6 +389,15 @@ def remove_columns(df):
 
 
 def one_hot_encode(df):
+    """Categorize and apply one-hot-encoding to all categorical columns.
+
+    Args:
+        df (pandas dataframe obj): Pandas dataframe with only columns used for prediction
+
+    Returns:
+        X (pandas dataframe obj): Pandas dataframe with dummified categorical features and other features.
+        y (pandas dataframe obj): Pandas dataframe with target variable i.e. time window number.
+    """
     print("Categorizing columns...")
     print(f"Starting with {report_df_stats(df)}")
     start_time = time.time()
@@ -320,19 +440,18 @@ def one_hot_encode(df):
 
 
 def split_scale_data(X, y):
-    '''
-    This function will prepare the data for classification.
-    It expects the following parameters:
-      - X: feature columns
-      - y: target variable column
-      - train_size: proportion of dataset used for training
-      - random_state: the random seed to use when selecting a subset of rows
+    '''Split into training and test datasets, and scale data
 
-    This function returns a dictionary with the following entries
-      - X_train: the matrix of training data
-      - y_train: the array of training labels
-      - X_test: the matrix of testing data
-      - y_test: the array of testing labels
+    Args:
+        X (pandas dataframe obj): Pandas dataframe with dummified categorical features and other features.
+        y (pandas dataframe obj): Pandas dataframe with target variable i.e. time window number.
+
+    Returns:
+        Dictionary of numpy arrays:
+            X_train: the matrix of training data
+            y_train: the array of training labels
+            X_test: the matrix of testing data
+            y_test: the array of testing labels
     '''
     # Split data
     print("Splitting and scaling data...")
@@ -370,6 +489,16 @@ def split_scale_data(X, y):
 
 
 def preprocess(extracted_data):
+    """Combines all preprocessing functions. Invoked by main.
+
+    Args:
+        extracted_data (pandas df obj): Pandas dataframe containing data extracted from 71lbs database
+
+    Returns:
+        datadict (dict): Dictionary of numpy arrays containing preprocessed train and test data.
+        model_id (str): Timestamp used to identify model, scaler and feature names files
+
+    """
     # Set warning for chained assignment to None.
     print("Preprocessing data before training...\n")
     pd.options.mode.chained_assignment = None
@@ -383,6 +512,6 @@ def preprocess(extracted_data):
     return datadict, model_id
 
 if __name__ == '__main__':
-    df = load_extracted_data(os.path.join(paths.extracted_data_sample_cmu))
+    df = joblib.load(os.path.join(paths.extracted_data_sample_cmu))
     preprocess(df)
 

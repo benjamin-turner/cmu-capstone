@@ -1,3 +1,11 @@
+"""
+File paths
+
+This script contains the model, data, output file paths, as well as paths to static files e.g. CMU model.
+This file should be imported as a module by all other modules for file saving/loading operations.
+
+"""
+
 import os
 import glob
 
@@ -36,11 +44,14 @@ data_delivery_prediction_data_dict_dir_cmu = os.path.join(data_delivery_predicti
 model_cmu = os.path.join(model_dir, 'model_cmu.pkl.z')
 scaler_cmu = os.path.join(model_scaler_dir, 'scaler_cmu.pkl.z')
 windows_cmu = os.path.join(data_delivery_prediction_windows_dir, 'windows_cmu.pkl')
+fedex_service_types_to_time_window = os.path.join(data_delivery_prediction_windows_dir, 'fedex_service_types_to_time_window.pkl')
+ups_service_types_to_time_window = os.path.join(data_delivery_prediction_windows_dir, 'ups_service_types_to_time_window.pkl')
 
 benchmarking_ss_matrix_cmu = os.path.join(data_benchmarking_dir, 'full_similarity_score_table.pickle')
 benchmarking_kpi_cmu = os.path.join(data_benchmarking_dir, 'full_KPI_database_v2.pickle')
 
 extracted_data_sample_cmu = os.path.join(data_extracted_dir, 'extract_sample_cmu.pkl.z')
+batch_sample_cmu = os.path.join(data_delivery_prediction_input_dir, 'delivery_prediction_batch_sample_cmu.csv')
 
 # Unit test cases
 if __name__ == '__main__':

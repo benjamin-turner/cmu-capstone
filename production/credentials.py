@@ -1,3 +1,10 @@
+"""
+Credentials
+
+This file contains credentials to the 71lbs database for data extraction,
+and Shippo API keys for delivery cost savings prediction.
+"""
+
 # Stores DB credentials
 host = 'ec2-54-242-241-88.compute-1.amazonaws.com'
 user = 'capstone'

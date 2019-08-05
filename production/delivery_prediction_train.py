@@ -1,3 +1,17 @@
+"""
+Delivery Prediction Training Script
+
+This script contains the functions to train the model and print relevant training results for the user in
+excel format.
+
+Model and model stats are saved as acc-<accuracy>-model_<model_id>_.pkl.z and acc-<accuracy>-model_<model_id>_.xlsx
+with model_id being the YYYYMMDD-HHMM timestamp created when preprocessing was initialized
+and accuracy being the model validation accuracy.
+
+This file should be imported as a module and contains the following
+function that is used in main.py:
+    * train - trains a random forest model on preprocessed data.
+"""
 import os
 import time
 import joblib
@@ -5,12 +19,22 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report
-
 import paths
 import utilities
 
 
 def get_accuracy_windows(max_windows, y_test, y_pred):
+    """Calculates and stores model validation accuracy as dataframe.
+
+    Args:
+        max_windows: Maximum +- windows.
+        y_test: Ground truth labels of target variable.
+        y_pred: Predicted labels of target variable.
+
+    Returns:
+         pandas dataframe obj: Pandas dataframe with accuracy for +- max_windows
+
+    """
     # Initialize array to hold counts for each window
     count_arr = np.zeros(max_windows)
 
@@ -40,6 +64,15 @@ def get_accuracy_windows(max_windows, y_test, y_pred):
 
 
 def get_feature_importance(model, model_id):
+    """Obtains and stores feature importance in % as dataframe.
+
+    Args:
+        model (obj): Model used for training and predicting dataset.
+        model_id (str): Timestamp used to identify model, scaler and feature names files
+
+    Returns:
+        pandas dataframe obj: Pandas dataframe with importance of each feature used.
+    """
     df = pd.DataFrame()
     # Load feature names
     features_path = os.path.join(paths.data_delivery_prediction_features_dir, "feature_names_" + model_id + ".npz")
@@ -52,12 +85,30 @@ def get_feature_importance(model, model_id):
 
 
 def get_params(model):
+    """Get model parameters and store in dataframe.
+
+    Args:
+        model (obj): Model used for training and predicting dataset.
+
+    Returns:
+        pandas dataframe obj: Pandas dataframe with model parameters
+    """
     params_dict = model.get_params()
     return pd.DataFrame([params_dict]).T
 
 
 def get_classification_report(y_test, y_pred):
-    report_dict = classification_report(y_test, y_pred, output_dict=True)
+    """Get report on precision and f1-score for each class and store in dataframe.
+
+    Args:
+        y_test: Ground truth labels of target variable.
+        y_pred: Predicted labels of target variable.
+
+    Returns:
+        pandas dataframe obj: Pandas dataframe with classification report
+    """
+    windows_cmu = joblib.load(paths.windows_cmu)
+    report_dict = classification_report(y_test, y_pred, output_dict=True, target_names=list(windows_cmu.values()))
     classification_report_df = pd.DataFrame([report_dict]).T
     classification_report_df.columns = ['Importance']
     classification_report_df = classification_report_df['Importance'].apply(pd.Series)
@@ -66,6 +117,19 @@ def get_classification_report(y_test, y_pred):
 
 
 def train(datadict, model_id, n_estimators=25, max_depth=50):
+    """Random forest model training.
+
+    Trains random forest model. Only n_estimators, max_depth hyperparameters are available to the user for training.
+    The rest of the hyperparameters have been tuned by the CMU team.
+    Saves model and statistics after training.
+
+    Args:
+        datadict (dict): Dictionary of numpy arrays containing preprocessed train and test data.
+        model_id (str): Timestamp used to identify model, scaler and feature names files.
+        n_estimators (str): Number of trees in forest. Less likely to overfit with more trees.
+        max_depth (str): The maximum depth of the tree. More likely to overfit if depth is large.
+
+    """
     # Convert n_estimators and max_depth from string to int since model only accepts int
     n_estimators = int(n_estimators)
     max_depth = int(max_depth)

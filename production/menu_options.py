@@ -1,10 +1,16 @@
+"""
+Static menu options and styles
+
+This script contains the static style attributes, user input validators and static menu options for the UI.
+Any questions contained in this module should be imported with prompt().
+Reference: https://github.com/tmbo/questionary
+
+"""
 from __future__ import print_function, unicode_literals
 import datetime
-import glob
 import zipcodes
-from questionary import Separator,Validator, ValidationError
-import paths
 from prompt_toolkit.styles import Style
+from questionary import Separator, Validator, ValidationError
 
 blue = Style([
     ('separator', 'fg:#6C6C6C'),
@@ -34,10 +40,18 @@ benchmarking_preprocess_initial_options = ['Average of all',
                                    'Weight scale by month']
 
 class DateValidator(Validator):
-    '''
-    abc
-    '''
+    """Contains class methods to validate date strings
+
+    """
     def validate(self, document):
+        """Validates date strings
+
+        Args:
+            document: User input to questionary prompt
+
+        Returns:
+            True if date is in valid format
+        """
         try:
             datetime.datetime.strptime(document.text, '%Y-%m-%d')
         except ValueError:
@@ -47,10 +61,18 @@ class DateValidator(Validator):
 
 
 class YearMonthValidator(Validator):
-    '''
-    abc
-    '''
+    """Contains class method to validate year and month
+
+    """
     def validate(self, document):
+        """Validates year month strings
+
+        Args:
+            document: User input to questionary prompt
+
+        Returns:
+            True if date is in valid format
+        """
         try:
             datetime.datetime.strptime(document.text, '%Y-%m')
         except ValueError:
@@ -60,7 +82,19 @@ class YearMonthValidator(Validator):
 
 
 class ZipcodeValidator(Validator):
+    """Contains class method to validate zipcodes
+
+    """
     def validate(self, document):
+        """Validates zipcodes
+
+        Args:
+            document: User input to questionary prompt
+
+        Returns:
+            True if user zipcode is valid number with len=5 and according to zipcodes package
+            Reference: https://pypi.org/project/zipcodes/
+        """
         ok = False
         if document.text.isdigit() and len(document.text) == 5:
             ok = zipcodes.is_real(document.text)
@@ -71,7 +105,18 @@ class ZipcodeValidator(Validator):
 
 
 class NumberValidator(Validator):
+    """Contains class method to validate numbers
+
+    """
     def validate(self, document):
+        """Validates number
+
+        Args:
+            document: User input to questionary prompt
+
+        Returns:
+            True if number is valid
+        """
         try:
             float(document.text)
         except ValueError:
@@ -81,7 +126,19 @@ class NumberValidator(Validator):
 
 
 class WeightValidator(Validator):
+    """Contains class method to validate weight of a shipment
+
+    """
     def validate(self, document):
+        """Validates shipment weight
+
+        Args:
+            document: User input to questionary prompt
+
+        Returns:
+            True if weight is a number and below 150 lbs. According to FedEx and UPS,
+            air shipment weight cannot exceed 150 lbs.
+        """
         ok = False
         try:
             weight = float(document.text)
@@ -98,7 +155,18 @@ class WeightValidator(Validator):
 
 
 class FractionValidator(Validator):
+    """Contains class method to validate fractions
+
+    """
     def validate(self, document):
+        """Validates fractions.
+
+        Args:
+            document: User input to questionary prompt
+
+        Returns:
+            True if fraction is valid.
+        """
         ok = False
         try:
             fraction = float(document.text)
@@ -115,7 +183,18 @@ class FractionValidator(Validator):
 
 
 class PercentileValidator(Validator):
+    """Contains class method to validate percentile
+
+    """
     def validate(self, document):
+        """Validates percentiles
+
+        Args:
+            document: User input to questionary prompt
+
+        Returns:
+            True if percentile is a number and between 0 and 100.
+        """
         ok = False
         try:
             percentile = int(document.text)
@@ -132,19 +211,18 @@ class PercentileValidator(Validator):
 
 
 class SIDValidator(Validator):
-    def validate(self, document):
-        import builtins
-        ok = False
-        if document.text.upper() in builtins.sid_list:
-            ok = True
-        if not ok:
-            raise ValidationError(
-                message='SID not found in selected similarity matrix.',
-                cursor_position=len(document.text))  # Move cursor to end
+    """Contains class method to validate business SID
 
-
-class sumToOneValidator(Validator):
+    """
     def validate(self, document):
+        """Validates business SID against similarity matrix provided.
+
+        Args:
+            document: User input to questionary prompt
+
+        Returns:
+            True if SID is found in columns of similarity matrix provided.
+        """
         import builtins
         ok = False
         if document.text.upper() in builtins.sid_list:

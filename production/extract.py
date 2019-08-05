@@ -1,3 +1,19 @@
+"""
+Data Extraction
+
+This script contains the functions to extract data from 71lbs database and execute general cleaning
+before passing the data on to other functions.
+
+Extracted data is saved as compressed pickle files in extract_frac-<fraction>_<file_id>
+where file_id is the YYYYMMDD-HHMM timestamp created when file storage is initialized, and
+fraction is the fraction of data extracted.
+
+This file should be imported as a module and contains the following functions that are used in main.py:
+    * batch_query - Extracts a fraction of raw shipping records from the database.
+    * store - Store the cleaned records as a compressed dataframe pickle object.
+
+"""
+
 import calendar
 import os
 import time
@@ -8,17 +24,25 @@ from dateutil import relativedelta
 from fuzzywuzzy import fuzz, process
 import joblib
 from tqdm import tqdm, trange
-
 import credentials
 import paths
 import utilities
 
 
 def query(db, start_date, end_date, frac):
+    """Queries for and returns a sample of records that meet where clause criteria
+
+    Args:
+        db (obj): MySQL db object.
+        start_date (str): Query start date in YYYY-MM-DD format.
+        end_date (str): Query end date in YYYY-MM-DD format.
+        frac (str): String representation of fraction of data to extract.
+
+    Returns:
+       Pandas dataframe object: Dataframe with extracted results.
+
     """
-    Queries for and returns a sample of records that meet where clause criteria
-    """
-    # initializes query based upon start and end year months of shipment_date
+    # Initializes query based upon start and end year months of shipment_date
     fraction = utilities.string_to_decimal(frac)
     sql_query = """
     SELECT year_week, business_sid, UPPER(TRIM(industry)) AS industry, UPPER(TRIM(sub_industry)) AS sub_industry, shipper,
@@ -40,15 +64,19 @@ def query(db, start_date, end_date, frac):
     AND weight IS NOT NULL
     AND RAND() < {}
     """.format(start_date, end_date, fraction)
-    # queries database and returns a sample of results
-    # records = pd.read_sql_query(sql_query, db).sample(frac=fraction, replace=False)
     records = pd.read_sql_query(sql_query, db)
     return records
 
 
 def preprocess(records):
-    """
-    Preprocesses records to satisfy common cleansing requirements between benchmarking and delivery prediction solutions
+    """Preprocesses records to satisfy common cleansing requirements between benchmarking and delivery prediction solutions
+
+    Args:
+        records (pandas dataframe obj): Dataframe to be preprocessed.
+
+    Returns:
+        pandas dataframe obj: Dataframe with preprocessed records.
+
     """
 
     # Standardized shipping methods based primarily upon what is selectable through the FedEx API here:
@@ -79,7 +107,6 @@ def preprocess(records):
         records['zone'] = records['zone'].astype('int')
         # Keep zones 2 to 8
         records = records[records['zone'].isin(range(2,9))]
-        # records.zone = records.zone.__str__()
 
         # strips leading and trailing whitespaces from all string values
         obj_columns = records.select_dtypes(include='object').columns
@@ -120,15 +147,15 @@ def preprocess(records):
 
 
 def batch_query(start_year_month, end_year_month, frac):
-    """
-    Extracts a fraction of raw shipping records from the database.
+    """Extracts a fraction of raw shipping records from the database.
 
-    :param start: datetime
-        The earliest ship date of parcels
-    :param end: datetime
-    :param frac: float
-        Ranges from 0 to 1
-    :return: pandas dataframe
+    Args:
+        start_year_month (str): Start date in YYYY-MM format.
+        end_year_month (str): End date in YYYY-MM format.\
+        frac (str): String representation of fraction of data to extract.
+
+    Returns:
+        pandas dataframe obj: Dataframe with batch query records.
     """
 
     # Establishes connection to a MySQL db
@@ -180,6 +207,14 @@ def batch_query(start_year_month, end_year_month, frac):
 
 
 def create_filename(frac):
+    """Creates file name from timestamp and fraction extracted.
+
+    Args:
+        frac (str): String representation of fraction of data to extract.
+
+    Returns:
+        str: File name for storing extracted data
+    """
     file_id = utilities.get_timestamp()
     fraction = utilities.string_to_decimal(frac)
     filename = f"extract_frac-{int(fraction*100)}_{file_id}"
@@ -187,17 +222,24 @@ def create_filename(frac):
 
 
 def store(records, frac):
-    """
-    Stores results from each query into a pickle
+    """Stores results from each query into a compressed pickle file.
+
+    Args:
+        records (pandas dataframe obj): Dataframe after general preprocessing.
+        frac (str): String representation of fraction of data to extract.
+
+    Returns:
+        str: Output file path
+
     """
     print("Saving records...")
     start_time = time.time()
     filename = create_filename(frac)
-    output_path = os.path.join(paths.data_extracted_dir, filename) + ".pkl.z"
+    output_path = os.path.join(paths.data_extracted_dir, filename+".pkl.z")
     joblib.dump(records, output_path)
     print(f"Data extracted and stored in {output_path}")
     utilities.print_elapsed_time(start_time)
-    return output_path + ".pkl.z"
+    return output_path
 
 
 if __name__ == '__main__':
