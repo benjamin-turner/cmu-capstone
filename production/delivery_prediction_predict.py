@@ -512,7 +512,7 @@ def validate_batch(df):
                  (zipcodes.matching(row.sender_zip)[0]['state'] != 'AK')
         if not ok:
             print(
-                f"Found invalid sender zipcode `{row.sender_zip}` in row {row.Index}.\nPlease endPlease amend zipcode before trying again.")
+                f"Found invalid sender zipcode `{row.sender_zip}` in row {row.Index}.\nPlease amend zipcode before trying again.")
             all_ok = False
         # Validate zip codes
         ok = False
