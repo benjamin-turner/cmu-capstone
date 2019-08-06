@@ -269,7 +269,11 @@ def preprocess_one(shipment_date, shipper, std_weight, sender_zip, recipient_zip
     recipient_pop, recipient_pop_density, recipient_houses, recipient_state = get_zip_details(recipient_zip, search)
     sender_pop, sender_pop_density, sender_houses, sender_state = get_zip_details(sender_zip, search)
     # Get rates dataframe and zone
-    rates_df, zone = get_shippo_details(shipper, std_weight, sender_zip, sender_state, recipient_zip, recipient_state)
+    rates_df, zone = get_shippo_details(shipper, std_weight, sender_zip, sender_state, recipient_zip, recipient_state)    
+    if rates_df is None:
+        print('Shippo Api Error Ocurred: Please Try Again')
+        os.system('python main.py')
+
     # Create empty dataframe with correct columns that model was trained on
     df = pd.DataFrame(columns=feature_names['feature_names'])
     # Add new row into df with test data
