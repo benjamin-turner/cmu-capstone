@@ -17,6 +17,7 @@ import pandas as pd
 from prettytable import PrettyTable
 import menu_options
 import paths
+import utilities
 
 '''
 Store the current directory in a variable
@@ -686,15 +687,13 @@ def get_selected_metrics(selected_metrics, sid, percentile, preloaded_matrix, pr
 
     merged_df = pd.merge(similarity_data, descriptors, how = 'inner', left_index = True, right_index = True)
 
-    # filename convention: benchmark_<SID>_<PERCENTILE>_<YYYYMMDD-HHMM>
-    output_path = os.path.join(orig_dir, paths.output_benchmarking_dir)
-    timestr = time.strftime("%Y%m%d-%H%M")
-
-    file_name = output_path + '\Benchmarking_' + str(sid) + '_' + str(
-        percentile) + '_' + timestr + '.xlsx'
-
-    os.getcwd()
-    with pd.ExcelWriter(file_name) as writer:
+    # filename convention: benchmarking_<SID>_<PERCENTILE>_<YYYYMMDD-HHMM>
+    model_id = utilities.get_timestamp()
+    file_name = f"benchmarking_{sid}_{percentile}_{model_id}.xlsx"
+    output_path = os.path.join(paths.output_benchmarking_dir, file_name)
+    print("Saving output...")
+    with pd.ExcelWriter(output_path) as writer:
         allKPIs.to_excel(writer, sheet_name='KPIs')
         merged_df.to_excel(writer, sheet_name='Reference_Data')
+    print(f"Output saved in {output_path}\n")
     return True

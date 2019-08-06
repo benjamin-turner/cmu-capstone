@@ -170,17 +170,23 @@ def get_shippo_details(shipper, weight, sender_zip, sender_state, recipient_zip,
         "length": "5", "width": "5", "height": "5", "distance_unit": "in",
         "weight": weight, "mass_unit": "lb"
     }
-    # Create shipment with parcel
-    shipment = shippo.Shipment.create(
-        address_from=address_from,
-        address_to=address_to,
-        parcels=[parcel],
-        asynchronous=False
-    )
-    # Retrieve shipment ID created by Shippo
-    shippo_id = shippo.Shipment.retrieve(shipment.object_id)['object_id']
-    # Get rates in JSON format with shipment ID
-    rates = shippo.Shipment.get_rates(shippo_id)
+    try:
+        # Create shipment with parcel
+        shipment = shippo.Shipment.create(
+            address_from=address_from,
+            address_to=address_to,
+            parcels=[parcel],
+            # asynchronous=False
+        )
+        # Retrieve shipment ID created by Shippo
+        shippo_id = shippo.Shipment.retrieve(shipment.object_id)['object_id']
+        # Get rates in JSON format with shipment ID
+        rates = shippo.Shipment.get_rates(shippo_id)
+    except Exception:
+        print("Retrieving information from Shippo failed, please try again...")
+        from main import load_main_menu
+        load_main_menu()
+
     # Store rates information in results dict
     results = {}
     # Set default zone to 5. Only used if zone is not found.
@@ -412,10 +418,11 @@ def predict_one_cost_savings(shipment_date, shipper, weight, sender_zip, recipie
     pred_proba_df['Probability'] = pd.Series(["{0:.2f}%".format(val * 100) for val in pred_proba_df['Probability']],
                                              index=pred_proba_df.index)
     pred_proba_df.index.rename('Time Window', inplace=True)
+    print("\nSaving results...")
     with pd.ExcelWriter(output_path) as writer:
         cost_savings_df.to_excel(writer, sheet_name='Cost Savings')
         pred_proba_df.to_excel(writer, sheet_name='Predicted Window Probabilities')
-    print("Results saved to " + output_path)
+    print("Results saved to " + output_path + "\n")
     return cost_savings_df
 
 
@@ -679,15 +686,15 @@ def format_batch_results(pred, pred_proba, df):
     col_to_format.pop(0)
     df_display = df_display.drop(columns=col_to_format)
     print(tabulate(df_display, headers='keys', showindex=False, floatfmt=".2f", tablefmt='psql'))
+    utilities.print_elapsed_time(start_time)
     # Save to xlsx format
     timestamp = utilities.get_timestamp()
     output_path = os.path.join(paths.output_delivery_prediction_dir, timestamp + "_predict_batch.xlsx")
+    print("\nSaving results...")
     with pd.ExcelWriter(output_path) as writer:
         df.to_excel(writer, sheet_name='Predicted Window Probability')
         df_features.to_excel(writer, sheet_name='Features')
-    print("\nResults saved to " + output_path)
-
-    utilities.print_elapsed_time(start_time)
+    print("Results saved to " + output_path + "\n")
     return df
 
 
