@@ -37,29 +37,33 @@ def get_raw_scores(sid, preloaded_matrix):
     '''
     full_ss_matrix_optimized = np.array(preloaded_matrix)
     full_matrix_indices = np.array(preloaded_matrix.index.values)
+
     # Retrieve the index at which the requested sid is present in the SS matrix
     test_sid_idx = np.where(full_matrix_indices == sid)[0][0]
+
     # Return the SS array
     raw_score_array = full_ss_matrix_optimized[test_sid_idx]
+
     # Change NANs to 0
     raw_score_array[np.isnan(raw_score_array)] = 0
+
     # Identify indices where scores <=0 are currently present
     dirty_score_idx = np.where(raw_score_array <= 0)
-    # print(dirty_score_idx)
+
     # Update these indices with a different value (0.0001 is chosen here)
     clean_scores = raw_score_array
-    # print(clean_scores[0:5])
     np.put(clean_scores, dirty_score_idx, np.full(shape=len(dirty_score_idx), fill_value=0.0001))
-    # print(clean_scores[0:5])
+
     return np.array(clean_scores)
 
 
-# For a given sid and percentile, this function returns the threshold similarity score value.
-# All sids with a similarity score higher than the threshold value will be deemed 'similar customers'
-# at the given percentile(default 90th %ile) level
 def ss_threshold(sid, percentile, preloaded_matrix):
     '''
     Get threshold score based on user-selected percentile
+
+    For a given sid and percentile, this function returns the threshold similarity score value.
+    All sids with a similarity score higher than the threshold value will be deemed 'similar customers'
+    at the given percentile(default 90th %ile) level
     
     Args:
         sid (str): sid for which threshold score is needed
@@ -71,14 +75,15 @@ def ss_threshold(sid, percentile, preloaded_matrix):
         
     '''
     threshold_score = (np.percentile(get_raw_scores(sid, preloaded_matrix), percentile))
-    # print(threshold_score)
     return np.round(threshold_score, 3)
 
-# This directly returns a list of ALL similar customers that are above a certain percentile threshold(default 90th %ile)
+
 def get_similar_customers(input_sid, percentile, user, preloaded_matrix):
     '''
-    Get similar customers and their similarity scores based on input sid and percentile
-    
+    Get similar customers and their similarity scores based on input sid and percentile.
+
+    This directly returns a list of ALL similar customers that are above a certain percentile threshold(default 90th %ile).
+
     Args:
         input_sid (str): sid for which similar customers are needed
         percentile (int): Value between 0-100 provided by user
@@ -127,6 +132,7 @@ def get_similar_customers(input_sid, percentile, user, preloaded_matrix):
 #percentile = 90
 #user = 1
 #df.head()
+
 ############################################################################################################
 
 # Average Spend KPI (Option 1)
@@ -160,7 +166,6 @@ def KPI_avg_spend(input_sid, percentile, user, preloaded_matrix, preloaded_KPIs)
     self_avg_spend = np.array(np.round(avg_spend_df.loc[input_sid], 2))
     peer_avg_spend = np.round(np.mean(np.array(avg_spend_df)[similar_customers_idx], axis=0), 2)
 
-    # Print output
     cols = ['Metric', 'Self', 'Peers']
     metrics = avg_spend_df.columns.tolist()
     self_vals = self_avg_spend
@@ -513,7 +518,6 @@ def KPI_shipper_proportion(input_sid, percentile, user, preloaded_matrix, preloa
         
     '''
     full_KPI_indices = np.array(preloaded_KPIs.index.values)
-    #print(preloaded_KPIs)
     fedex_prop_list = np.array(np.round(preloaded_KPIs['proportion_fedex'], 2))
     ups_prop_list = np.array(np.round(preloaded_KPIs['proportion_ups'], 2))
 
@@ -655,8 +659,6 @@ def get_selected_metrics(selected_metrics, sid, percentile, preloaded_matrix, pr
         True (bool): Dummy response. All terminal output and file generation is handled within the function
         
     '''
-    # if "Number of peers" in selected_metrics:
-    #     KPI1 = get_similar_customers(sid, percentile, user=1)
     dispatch_list = []
     for metric in menu_options.benchmarking_metric_options:
         # If metric is selected: add function that corresponds to metric to dispatch list
@@ -685,13 +687,12 @@ def get_selected_metrics(selected_metrics, sid, percentile, preloaded_matrix, pr
     merged_df = pd.merge(similarity_data, descriptors, how = 'inner', left_index = True, right_index = True)
 
     # filename convention: benchmark_<SID>_<PERCENTILE>_<YYYYMMDD-HHMM>
-    #orig_dir = 'C:\\Users\\Shivalik\\Documents\\GitHub\\cmu-capstone\\cmu-capstone\\production'
     output_path = os.path.join(orig_dir, paths.output_benchmarking_dir)
     timestr = time.strftime("%Y%m%d-%H%M")
-    # print(output_path)
+
     file_name = output_path + '\Benchmarking_' + str(sid) + '_' + str(
         percentile) + '_' + timestr + '.xlsx'
-    # print(file_name)
+
     os.getcwd()
     with pd.ExcelWriter(file_name) as writer:
         allKPIs.to_excel(writer, sheet_name='KPIs')
