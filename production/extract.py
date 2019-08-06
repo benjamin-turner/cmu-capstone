@@ -8,8 +8,11 @@ Extracted data is saved as compressed pickle files in extract_frac-<fraction>_<f
 where file_id is the YYYYMMDD-HHMM timestamp created when file storage is initialized, and
 fraction is the fraction of data extracted.
 
+User can choose from faster full_query method or batch_query. Default=batch_query.
+
 This file should be imported as a module and contains the following functions that are used in main.py:
-    * batch_query - Extracts a fraction of raw shipping records from the database.
+    * batch_query - Extracts a fraction of raw shipping records from the database in batches.
+    * full_query - Extracts a fraction of raw shipping records from the database without batches. Requires more RAM.
     * store - Store the cleaned records as a compressed dataframe pickle object.
 
 """
@@ -101,6 +104,7 @@ def preprocess(records):
                   'net_charge_amount', 'zone']
 
     if len(records) > 0:
+        # start_time=time.time()
         records = records[records.zone.apply(lambda x: x.isnumeric())]
         records[float_cols] = records[float_cols].astype('float64')
         records.zone %= 10
@@ -142,12 +146,59 @@ def preprocess(records):
 
         # drops unneeded columns
         records = records.drop(['std_service_type_score'], axis=1)
+    return records
 
+
+def full_query(start_year_month, end_year_month, frac):
+    """Extracts a fraction of raw shipping records from the database without batch method.
+
+    Does not query by batch. Faster but requires more RAM.
+
+    Args:
+        start_year_month (str): Start date in YYYY-MM format.
+        end_year_month (str): End date in YYYY-MM format.\
+        frac (str): String representation of fraction of data to extract.
+
+    Returns:
+        pandas dataframe obj: Dataframe with batch query records.
+    """
+
+    # Establishes connection to a MySQL db
+    print(f"Connecting to {credentials.db}...")
+    start_time = time.time()
+    db = MySQLdb.connect(credentials.host, credentials.user, credentials.password, credentials.db)
+    utilities.print_elapsed_time(start_time)
+
+    # instantiates batch start and end dates as the int of the concatenated string of year + month
+    print("Extracting records...")
+    extraction_start_time = time.time()
+    # Append day 1 to year and month to create datetime object. Day does not affect result
+    start_date = datetime.strptime(start_year_month + "-1", "%Y-%m-%d").date()
+    end = datetime.strptime(end_year_month + "-1", "%Y-%m-%d").date()
+    month = end.month
+    year = end.year
+    last_date_of_month = calendar.monthrange(year, month)[1]
+    end_date = f"{year}-{month}-{last_date_of_month}"
+    records = pd.DataFrame()
+    # Set warning for chained assignment to None.
+    pd.options.mode.chained_assignment = None
+    # Calculate number of months between start and end year/month
+    results = query(db, start_date, end_date, frac)
+    print(f"{len(results)} records extracted.")
+    utilities.print_elapsed_time(extraction_start_time)
+    if len(results) > 0:
+        num_batches = 100
+        chunk_size = int(results.shape[0] / num_batches)
+        print(f"Cleaning {len(results)} records...")
+        for start in trange(0, results.shape[0], chunk_size):
+            df_subset = results.iloc[start:start + chunk_size]
+            records = records.append(preprocess(df_subset), ignore_index=True)
+    print(f"Returning {len(records)} records.\n")
     return records
 
 
 def batch_query(start_year_month, end_year_month, frac):
-    """Extracts a fraction of raw shipping records from the database.
+    """Extracts a fraction of raw shipping records from the database with batch method.
 
     Args:
         start_year_month (str): Start date in YYYY-MM format.
