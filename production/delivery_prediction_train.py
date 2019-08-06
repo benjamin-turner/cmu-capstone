@@ -14,11 +14,13 @@ function that is used in main.py:
 """
 import os
 import time
+
 import joblib
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report
+
 import paths
 import utilities
 

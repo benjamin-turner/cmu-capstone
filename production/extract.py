@@ -21,12 +21,14 @@ import calendar
 import os
 import time
 from datetime import datetime
+
 import MySQLdb
+import joblib
 import pandas as pd
 from dateutil import relativedelta
 from fuzzywuzzy import fuzz, process
-import joblib
-from tqdm import tqdm, trange
+from tqdm import trange
+
 import credentials
 import paths
 import utilities

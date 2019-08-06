@@ -14,12 +14,14 @@ This file should be imported as a module and contains the following functions th
 """
 import os
 import warnings
+
 import joblib
 import numpy as np
 import pandas as pd
-import paths
-import utilities
 from tqdm import tqdm
+
+import paths
+
 warnings.filterwarnings('ignore')
 
 '''

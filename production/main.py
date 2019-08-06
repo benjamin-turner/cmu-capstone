@@ -9,20 +9,28 @@ This file should be run as the entry point into the dashboard.
 
 """
 from __future__ import print_function, unicode_literals
-import os
-import sys
-import joblib
-import numpy as np
-import questionary
-from questionary import Separator, Choice, prompt
+
 import builtins
 import glob
+import os
+import sys
+
+import joblib
+import numpy as np
 import pandas as pd
-import menu_options, paths
+import questionary
+from questionary import prompt
+
+import benchmarking
+import benchmarking_calc
+import delivery_prediction_predict
+import delivery_prediction_preprocess
+import delivery_prediction_train
+import extract
+import menu_options
+import paths
+import utilities
 from menu_options import blue
-import delivery_prediction_predict, delivery_prediction_preprocess, delivery_prediction_train
-import benchmarking, benchmarking_calc
-import extract, utilities
 
 
 def load_main_menu():

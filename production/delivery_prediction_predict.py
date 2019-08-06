@@ -22,6 +22,7 @@ This file should be imported as a module and contains the following function tha
 import datetime
 import os
 import time
+
 import joblib
 import numpy as np
 import pandas as pd
@@ -31,7 +32,11 @@ import zipcodes
 from tabulate import tabulate
 from tqdm import tqdm
 from uszipcode import SearchEngine
-import credentials, paths, utilities, delivery_prediction_preprocess
+
+import credentials
+import delivery_prediction_preprocess
+import paths
+import utilities
 
 
 def get_distance(zipcode1, zipcode2):
@@ -729,7 +734,7 @@ if __name__ == '__main__':
     assert get_msa_details('15213', '15211') == (True, True, True)
     assert get_msa_details('00801', '15211') == (False, True, False)
     # Predict for one instance
-    # predict_one_cost_savings("2019-07-09", "ups", 9, 91724, 15206)
+    predict_one_cost_savings("2019-07-09", "ups", 9, 91724, 15206)
     # Predict for batch
     df = pd.read_csv(paths.batch_sample_cmu, dtype=str)
     feature_names = np.load(paths.data_delivery_prediction_features_dir_cmu, allow_pickle=True)

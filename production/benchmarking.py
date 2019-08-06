@@ -11,10 +11,11 @@ This file should be imported as a module and contains the following function use
     
 """
 import os
-import time
+
 import numpy as np
 import pandas as pd
 from prettytable import PrettyTable
+
 import menu_options
 import paths
 import utilities

@@ -19,16 +19,19 @@ function that is used in main.py:
 import os
 import time
 from datetime import timedelta
+
+import joblib
 import numpy as np
 import pandas as pd
+import pgeocode
 from pandas.tseries.holiday import USFederalHolidayCalendar
+from sklearn import preprocessing
+from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from uszipcode import SearchEngine
-import pgeocode
-import joblib
-from sklearn.model_selection import train_test_split
-from sklearn import preprocessing
-import paths, utilities
+
+import paths
+import utilities
 
 
 def set_model_id():
